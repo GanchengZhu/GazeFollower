@@ -1,2 +1,5 @@
 # GazeFollower
-A pythonic library for web-cam gaze-tracker
+A pythonic library for web-cam gaze-tracker.
+
+
+Coming soon
