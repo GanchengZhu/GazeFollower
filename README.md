@@ -125,6 +125,10 @@ gaze_follower.save_data("demo.csv")
 gaze_follower.release()
 ```
 
+## How to fine-tune
+
+Please send an email to `zhiguo@zju.edu.cn` to access data collection, data preprocessing, and fine-tuning code
+
 ## License Information
 
 This project is licensed under
