@@ -141,7 +141,8 @@ The work is provided "as-is" without any warranties, express or implied, includi
 merchantability, fitness for a particular purpose, or non-infringement.
 
 
-### Citing this
+### Citations
+
 ```BibTeX
 @article{zhu2025gazefollower,
   title={GazeFollower: An open-source system for deep learning-based gaze tracking with web cameras},
