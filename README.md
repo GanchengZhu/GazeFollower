@@ -76,9 +76,9 @@ More detailed usage information can be found [here](MORE_INFO.md).
 
 ## Note
 
-This depository only contains a model train on 7 million images. To gain access to the base model trained on 32 million
-images, please send an email to zhiguo@zju.edu.cn. Upon successful processing of your request, you will receive an email
-containing the model.
+This depository contains a model train on 7 million images that is sufficient for most applications. 
+
+To gain access to the base model trained on 32 millionimages, please send an email to zhiguo@zju.edu.cn.
 
 ### Email Prompt
 
