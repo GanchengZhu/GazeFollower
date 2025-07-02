@@ -82,9 +82,9 @@ class PupilioCamera(Camera):
                 frame0 = cv2.resize(frame, (self.target_img_width, self.target_img_height))
                 try:
                     with self.callback_and_param_lock:
-                        if self.callback_and_params:
-                            func, args, kwargs = self.callback_and_params
-                            func(self.camera_running_state, timestamp, frame0, *args, **kwargs)
+                        if self.callback_func is not None:
+                            self.callback_func(self.camera_running_state, timestamp, frame, *self.callback_args,
+                                               **self.callback_kwargs)
                 except Exception as e:
                     Log.e(str(e))
                     # sys.exit(1)
