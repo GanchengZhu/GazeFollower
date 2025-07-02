@@ -78,7 +78,7 @@ More detailed usage information can be found [here](MORE_INFO.md).
 
 This depository contains a model train on 7 million images that is sufficient for most applications. 
 
-To gain access to the base model trained on 32 millionimages, please send an email to zhiguo@zju.edu.cn.
+To gain access to the base model trained on 32 million images, please email zhiguo@zju.edu.cn.
 
 ### Email Prompt
 
@@ -139,6 +139,47 @@ Please see LICENSE file.
 
 The work is provided "as-is" without any warranties, express or implied, including but not limited to the warranties of
 merchantability, fitness for a particular purpose, or non-infringement.
+
+
+### Citing this
+```BibTeX
+@article{zhu2025gazefollower,
+  title={GazeFollower: An open-source system for deep learning-based gaze tracking with web cameras},
+  author={Zhu, Gancheng and Duan, Xiaoting and Huang, Zehao and Wang, Rong and Zhang, Shuai and Wang, Zhiguo},
+  journal={Proceedings of the ACM on Computer Graphics and Interactive Techniques},
+  volume={8},
+  number={2},
+  pages={1--18},
+  year={2025},
+  publisher={ACM New York, NY}
+}
+```
+
+```BibTeX
+@article{zhu2024neural,
+  title={Neural Networks With Linear Adaptive Batch Normalization and Swarm Intelligence Calibration for Real-Time Gaze Estimation on Smartphones},
+  author={Zhu, Gancheng and Li, Yongkai and Zhang, Shuai and Duan, Xiaoting and Huang, Zehao and Yao, Zhaomin and Wang, Rong and Wang, Zhiguo},
+  journal={International Journal of Intelligent Systems},
+  volume={2024},
+  number={1},
+  pages={2644725},
+  year={2024},
+  publisher={Wiley Online Library}
+}
+```
+
+```BibTeX
+@article{zhu2025smartphone,
+  title={Smartphone eye-tracking with deep learning: Data quality and field testing},
+  author={Zhu, Gancheng and Huang, Zehao and Duan, Xiaoting and Zhang, Shuai and Wang, Rong and Li, Yongkai and Wang, Zhiguo},
+  journal={Behavior Research Methods},
+  volume={57},
+  number={7},
+  pages={1--19},
+  year={2025},
+  publisher={Springer}
+}
+```
 
 # NEED TO IMPLEMENTATION
 

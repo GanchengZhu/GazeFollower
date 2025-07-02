@@ -4,6 +4,7 @@
 # Email: zhugc2016@gmail.com
 
 import threading
+
 from ..misc import CameraRunningState  # Importing the CameraRunningState enum for managing camera states
 
 
@@ -21,7 +22,9 @@ class Camera:
         """
         # Initializes the camera state to CLOSING and prepares a lock for callback management
         self.camera_running_state = CameraRunningState.CLOSING
-        self.callback_and_params = []  # Stores the callback function and its parameters
+        self.callback_func = None  # Stores the callback function and its parameters
+        self.callback_args = ()
+        self.callback_kwargs = {}
         self.callback_and_param_lock = threading.Lock()  # A lock to manage access to callback settings
 
     def start_sampling(self):
@@ -129,7 +132,7 @@ class Camera:
         """
         raise NotImplementedError("Subclasses must implement this method.")
 
-    def set_on_image_callback(self, func, args=(), kwargs=None):
+    def set_on_image_callback(self, func, args=None, kwargs=None):
         """
         Sets the callback function that will be triggered on capturing an image.
         The callback function must have the following args,
@@ -143,6 +146,16 @@ class Camera:
         The function and its parameters are stored and protected by a threading lock.
         """
         with self.callback_and_param_lock:
+            if args is None:
+                self.callback_args = ()
+            else:
+                self.callback_args = args
+
             if kwargs is None:
-                kwargs = {}
-            self.callback_and_params = [func, args, kwargs]
+                self.callback_kwargs = {}
+            else:
+                self.callback_kwargs = kwargs
+
+            if func is not None and not callable(func):
+                raise TypeError("func must be callable or None")
+            self.callback_func = func

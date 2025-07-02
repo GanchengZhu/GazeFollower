@@ -4,7 +4,6 @@
 
 import math
 
-import cv2
 import mediapipe as mp
 import numpy as np
 
@@ -72,6 +71,7 @@ class MediaPipeFaceAlignment(FaceAlignment):
         :return: An instance of FaceInfo containing details about the detected face,
                  including status, bounding box, eye openness, and landmarks.
         """
+        # s_time = time.time()
         face_info = FaceInfo()
         face_info.timestamp = timestamp
         image_height, image_width, _ = image.shape
@@ -226,6 +226,7 @@ class MediaPipeFaceAlignment(FaceAlignment):
         face_info.left_eye_openness = left_eye_area
         face_info.right_eye_openness = right_eye_area
         face_info.can_gaze_estimation = True
+        # print(f"Time cost in {time.time() - s_time} s")
         return face_info
 
     def release(self):

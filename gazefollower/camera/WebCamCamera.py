@@ -75,9 +75,9 @@ class WebCamCamera(Camera):
             # Lock and execute callback function if set.
             try:
                 with self.callback_and_param_lock:
-                    if self.callback_and_params:
-                        func, args, kwargs = self.callback_and_params
-                        func(self.camera_running_state, timestamp, frame, *args, **kwargs)
+                    if self.callback_func is not None:
+                        self.callback_func(self.camera_running_state, timestamp, frame, *self.callback_args,
+                                           **self.callback_kwargs)
             except Exception as e:
                 Log.e(str(e))
                 sys.exit(1)

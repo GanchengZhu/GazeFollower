@@ -56,6 +56,7 @@ class GazeFollower:
         self.config: DefaultConfig = config
 
         # set the camera to call process_frame method when a new image is captured
+
         self.camera.set_on_image_callback(self.process_frame)
 
         # lock for synchronizing access to shared resources among threads
@@ -407,6 +408,8 @@ class GazeFollower:
 
         :return: None
         """
+        self.camera.close()
+        self.camera.set_on_image_callback(None)
         self.camera.release()
         self.gaze_filter.release()
         self.gaze_estimator.release()
