@@ -1,4 +1,4 @@
-# _*_ coding: utf-8 _*_
+# encoding=utf-8
 # Author: GC Zhu
 # Email: zhugc2016@gmail.com
 
@@ -83,8 +83,7 @@ class SVRCalibration(Calibration):
         # Return the predictions as a list
         return self.has_calibrated, (predicted_x, predicted_y)
 
-    def calibrate(self, features, labels, ids=None) \
-            -> Tuple[bool, float, ndarray] | Tuple[bool, float, Any]:
+    def calibrate(self, features, labels, ids=None):
         # Ensure that features and labels are numpy arrays
         features = features.astype(np.float32)
         labels = labels.astype(np.float32)

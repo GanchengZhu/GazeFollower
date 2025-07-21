@@ -24,6 +24,9 @@ from .logger import Log
 from .misc import CameraRunningState, clip_patch, GazeInfo, DefaultConfig
 from .ui import CameraPreviewerUI, CalibrationUI
 
+# encoding=utf-8
+# Author: GC Zhu
+# Email: zhugc2016@gmail.com
 
 class GazeFollower:
 
@@ -82,9 +85,9 @@ class GazeFollower:
 
         self._gaze_info = None
 
-    def get_gaze_info(self) -> GazeInfo | None:
+    def get_gaze_info(self):
         """
-        Returns the gaze information of the eye-tracking system.
+        Returns the gaze information of the eye-tracking system or none.
         """
         return self._gaze_info
 

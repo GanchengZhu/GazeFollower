@@ -40,12 +40,12 @@ setup(
     long_description=open('README.md').read(),  # 或者使用其他文档文件
     long_description_content_type='text/markdown',  # 如果使用 Markdown 格式
     package_data={
-        package_name: ['res/audio/*', 'res/image/*', 'res/model_weights/*'],
+        package_name: ['res/audio/*', 'res/image/*', 'res/model_weights/base.mnn'],
     },
 
     install_requires=[
-        'mediapipe==0.10.5',
-        'MNN==2.9.5',
+        'mediapipe',
+        'MNN',
         'numpy',
         'opencv-python',
         'pandas',
@@ -59,6 +59,6 @@ setup(
         'Development Status :: 5 - Production/Stable',
         'Intended Audience :: Developers',
     ],
-    python_requires='>=3.8',  # Specify the required Python version
+    python_requires='>=3.7',  # Specify the required Python version
 
 )

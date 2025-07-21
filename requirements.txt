@@ -1,4 +1,4 @@
-mediapipe==0.10.21
+mediapipe
 MNN
 numpy
 opencv-python

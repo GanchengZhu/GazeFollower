@@ -2,9 +2,7 @@
 # Author: GC Zhu
 # Email: zhugc2016@gmail.com
 
-from typing import List, Tuple, Any
-
-from numpy import ndarray
+from typing import Tuple
 
 
 class Calibration:
@@ -19,8 +17,7 @@ class Calibration:
         """
         self.has_calibrated = False
 
-    def calibrate(self, features, labels, ids=None) -> \
-            Tuple[bool, float, ndarray] | Tuple[bool, float, Any]:
+    def calibrate(self, features, labels, ids=None):
         """
         Calibrates the model using the provided features and labels.
 
