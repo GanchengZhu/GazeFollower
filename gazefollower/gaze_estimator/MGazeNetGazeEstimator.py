@@ -3,18 +3,20 @@
 # Email: zhugc2016@gmail.com
 
 import pathlib
+import traceback
 
 import MNN
 import cv2
 import numpy as np
 
-from .GazeEstimator import GazeEstimator
+from ..gaze_estimator import GazeEstimator
+from ..logger import Log
 from ..misc import FaceInfo, GazeInfo, TrackingState, clip_patch
 
 
 class MGazeNetGazeEstimator(GazeEstimator):
     """
-    A gaze estimation class that utilizes a pre-trained MNN model.
+    A gaze estimation class that utilizes a pre-trained MNN model with MNN Module API.
 
     This class is responsible for loading the model, preparing input data,
     and running inference to estimate gaze direction based on facial information.
@@ -33,24 +35,22 @@ class MGazeNetGazeEstimator(GazeEstimator):
             self.model_path = pathlib.Path(__file__).parent.parent / "res/model_weights/base.mnn"
         else:
             self.model_path = pathlib.Path(model_path).resolve()
-        self.interpreter = MNN.Interpreter(str(self.model_path))
 
-        # Create a session for running the model
-        self.session = self.interpreter.createSession({'precision': 'normal',
-                                                       'numThread': 6,
-                                                       'backend': 0})
+        # Load model using MNN Module API
+        try:
+            # Create runtime configuration
+            config = {'precision': 'low', 'backend': 0, 'numThread': 4}
+            rt = MNN.nn.create_runtime_manager((config,))
+            # Load model with input and output names
+            self.gaze_module = MNN.nn.load_module_from_file(
+                str(self.model_path),
+                ["face", "left", "right", "rect"],  # Input names
+                ["output_0"],  # Output name
+                runtime_manager=rt
+            )
 
-        # Get input tensors for face and eyes
-        self.face_input_tensor = self.interpreter.getSessionInput(self.session, "face")
-        self.left_input_tensor = self.interpreter.getSessionInput(self.session, "left")
-        self.right_input_tensor = self.interpreter.getSessionInput(self.session, "right")
-        self.rect_input_tensor = self.interpreter.getSessionInput(self.session, "rect")
-
-        # Temporary output tensor for storing inference results
-        self.tmp_output = MNN.Tensor((1, 258),
-                                     MNN.Halide_Type_Float,
-                                     np.zeros([1, 258]).astype(np.float32),
-                                     MNN.Tensor_DimensionType_Tensorflow)
+        except Exception as e:
+            raise e
 
         # Define input dimensions for model
         self.face_input_format = (1, 224, 224, 3)
@@ -61,6 +61,12 @@ class MGazeNetGazeEstimator(GazeEstimator):
         self.face_size = (224, 224)
         self.eye_size = (112, 112)
         self.rect_size = (1, 12)
+
+        # Placeholder variables for input (will be updated in detect method)
+        self.face_var = MNN.expr.placeholder(self.face_input_format, MNN.expr.NHWC)
+        self.left_var = MNN.expr.placeholder(self.eye_input_format, MNN.expr.NHWC)
+        self.right_var = MNN.expr.placeholder(self.eye_input_format, MNN.expr.NHWC)
+        self.rect_var = MNN.expr.placeholder(self.rect_input_format)
 
     def detect(self, image, face_info: FaceInfo) -> GazeInfo:
         """
@@ -104,57 +110,56 @@ class MGazeNetGazeEstimator(GazeEstimator):
                           re_w, re_h, re_x, re_y], dtype=np.float32) /
                 np.array(([face_info.img_w, face_info.img_h] * 6), dtype=np.float32))
 
+        # Reshape rect to match input format
+        rect = rect.reshape(1, 12)
+
         # Resize and normalize the patches for input
-        face_patch = cv2.resize(face_patch, self.face_size).astype(np.float32) / 255.0
-        left_patch = cv2.resize(left_eye_patch, self.eye_size).astype(np.float32) / 255.0
-        right_patch = cv2.resize(right_eye_patch, self.eye_size)
+        face_patch_resized = cv2.resize(face_patch, self.face_size).astype(np.float32) / 255.0
+        left_patch_resized = cv2.resize(left_eye_patch, self.eye_size).astype(np.float32) / 255.0
+        right_patch_resized = cv2.resize(right_eye_patch, self.eye_size).astype(np.float32) / 255.0
 
         # Flip the right eye patch horizontally for correct gaze estimation
-        right_patch = cv2.flip(right_patch, 1).astype(np.float32) / 255.0
+        right_patch_resized = cv2.flip(right_patch_resized, 1)
 
-        # Create input tensors for the model
-        face_tmp = MNN.Tensor(self.face_input_format,
-                              MNN.Halide_Type_Float,
-                              face_patch,
-                              MNN.Tensor_DimensionType_Tensorflow)
+        try:
+            # Write data to input variables
+            self.face_var.write(face_patch_resized)
+            self.left_var.write(left_patch_resized)
+            self.right_var.write(right_patch_resized)
+            self.rect_var.write(rect)
 
-        left_tmp = MNN.Tensor(self.eye_input_format,
-                              MNN.Halide_Type_Float,
-                              left_patch,
-                              MNN.Tensor_DimensionType_Tensorflow)
+            # Prepare inputs for the module
+            inputs = [self.face_var, self.left_var, self.right_var, self.rect_var]
 
-        right_tmp = MNN.Tensor(self.eye_input_format,
-                               MNN.Halide_Type_Float,
-                               right_patch,
-                               MNN.Tensor_DimensionType_Tensorflow)
+            # Run inference
+            outputs = self.gaze_module.onForward(inputs)
 
-        rect_tmp = MNN.Tensor(self.rect_input_format,
-                              MNN.Halide_Type_Float,
-                              rect,
-                              MNN.Tensor_DimensionType_Tensorflow)
+            if len(outputs) > 0:
+                output_tensor = outputs[0]
+                res = output_tensor.read()
+                res = res.copy()
+                res = res.reshape(-1).astype(np.float32)
+                gaze_info.features = res
+                gaze_info.raw_gaze_coordinates = res[:2]  # Extract gaze coordinates
+                gaze_info.status = True
+                gaze_info.left_openness = face_info.left_eye_openness
+                gaze_info.right_openness = face_info.right_eye_openness
+                gaze_info.tracking_state = TrackingState.SUCCESS
+            else:
+                gaze_info.status = False
+                gaze_info.tracking_state = TrackingState.FAILURE
 
-        # Copy input tensors to the session
-        self.face_input_tensor.copyFromHostTensor(face_tmp)
-        self.left_input_tensor.copyFromHostTensor(left_tmp)
-        self.right_input_tensor.copyFromHostTensor(right_tmp)
-        self.rect_input_tensor.copyFromHostTensor(rect_tmp)
+        except Exception as e:
+            Log.e(e)
+            Log.e(traceback.format_exc())
+            gaze_info.status = False
+            gaze_info.tracking_state = TrackingState.FAILURE
 
-        # Run the inference
-        self.interpreter.runSession(self.session)
-
-        # Get the output tensor and copy the results
-        output_tensor = self.interpreter.getSessionOutput(self.session, "output_0")
-        output_tensor.copyToHostTensor(self.tmp_output)
-
-        # Retrieve and process the results
-        res = self.tmp_output.getNumpyData().copy()[0]
-        gaze_info.features = res
-        gaze_info.raw_gaze_coordinates = res[:2]  # Extract gaze coordinates
-        gaze_info.status = True
-        gaze_info.left_openness = face_info.left_eye_openness
-        gaze_info.right_openness = face_info.right_eye_openness
-        gaze_info.tracking_state = TrackingState.SUCCESS
         return gaze_info
 
     def release(self):
+        """
+        Release resources.
+        """
+        # MNN Module doesn't require explicit release in this case
         pass

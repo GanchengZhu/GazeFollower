@@ -5,6 +5,7 @@
 import sys
 import threading
 import time
+import traceback
 
 import cv2
 
@@ -76,11 +77,13 @@ class WebCamCamera(Camera):
             try:
                 with self.callback_and_param_lock:
                     if self.callback_func is not None:
+
                         self.callback_func(self.camera_running_state, timestamp, frame, *self.callback_args,
                                            **self.callback_kwargs)
+
             except Exception as e:
                 Log.e(str(e))
-                sys.exit(1)
+                Log.e(f"Traceback:\n{traceback.format_exc()}")
 
     def open(self):
         """
@@ -89,6 +92,7 @@ class WebCamCamera(Camera):
         Log.i("WebCam opened")
         if not self._cap.open(self.webcam_id):
             Log.e("Failed to open webcam camera")
+            Log.e(f"Traceback:\n{traceback.format_exc()}")
             raise Exception("Failed to open webcam camera")
         self._create_capture_thread()
 

@@ -361,6 +361,8 @@ class GazeFollower:
             elif not self._calibration_controller.cali_model_fitted:
                 features = np.array(self._calibration_controller.feature_vectors)
                 n_point, n_frame, feature_dim = features.shape
+                print("feature shape: ", features.shape)
+
                 features = np.reshape(features, (n_point * n_frame, feature_dim))
 
                 labels = np.array(self._calibration_controller.label_vectors)
@@ -369,6 +371,19 @@ class GazeFollower:
                 ids = np.array(self._calibration_controller.feature_ids)
                 n_point, n_frame, ids_dim = ids.shape
                 point_ids = np.reshape(ids, (n_point * n_frame, ids_dim))
+
+                # timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                # features_path = f"features_{timestamp}.npz"
+                # labels_path = f"labels_{timestamp}.npz"
+                # point_ids_path = f"point_ids_{timestamp}.npz"
+                #
+                # np.savez_compressed(features_path, data=features)
+                # np.savez_compressed(labels_path, data=labels)
+                # np.savez_compressed(point_ids_path, data=point_ids)
+                #
+                # print(f"Features saved to: {features_path}")
+                # print(f"Labels saved to: {labels_path}")
+                # print(f"Point IDs saved to: {point_ids_path}")
 
                 has_calibrated, mean_euclidean_error, predictions \
                     = self.calibration.calibrate(features, labels, point_ids)

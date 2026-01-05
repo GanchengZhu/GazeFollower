@@ -3,7 +3,9 @@
 # Email: zhugc2016@gmail.com
 
 import numpy as np
+
 from .Enumeration import EyeMovementEvent, TrackingState
+
 
 class GazeInfo:
     """
@@ -63,6 +65,10 @@ class GazeInfo:
 
         :return: A string describing the GazeInfo instance.
         """
-        return (f"GazeInfo(timestamp={self.timestamp}, status={self.status}, gaze_coordinates={self.gaze_coordinates}, "
-                f"left_openness={self.left_openness}, right_openness={self.right_openness}, "
-                f"event={self.event}, tracking_state={self.tracking_state}, features={self.features})")
+        return (
+            f"GazeInfo(timestamp={self.timestamp}, status={self.status}, "
+            f"raw_gaze_coordinates={self.raw_gaze_coordinates[:2]}, "
+            f"cali_gaze_coordinates={self.calibrated_gaze_coordinates}, "
+            f"filtered_gaze_coordinates={self.filtered_gaze_coordinates}, "
+            f"left_openness={self.left_openness}, right_openness={self.right_openness}, "
+            f"event={self.event}, tracking_state={self.tracking_state}, features={self.features})")

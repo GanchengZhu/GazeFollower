@@ -16,6 +16,7 @@ import pandas as pd
 import pygame
 from screeninfo import get_monitors
 
+from ..logger import Log
 from ..ui.ParticipantInfoDialog import ParticipantInfoDialog
 
 
@@ -33,7 +34,7 @@ class Recorder:
         :param subject_dir_format: Format for the subject directory name.
         :param frame_name_format: Format for the names of saved image frames.
         """
-
+        Log.init("tmp.log")
         self.point_showing = False
         self.formal_exp = False
 
@@ -67,7 +68,7 @@ class Recorder:
         if not os.path.exists(self.image_save_dir):
             os.makedirs(self.image_save_dir)
 
-        root.destroy()
+        # root.destroy()
         self.frame_name_format = frame_name_format
 
         pygame.init()

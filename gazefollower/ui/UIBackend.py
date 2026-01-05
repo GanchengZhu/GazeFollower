@@ -60,7 +60,7 @@ class UIBackend:
         """
         raise NotImplementedError
 
-    def draw_image(self, img: numpy.ndarray | str, rect: Tuple[int, int, int, int]):
+    def draw_image(self, img, rect: Tuple[int, int, int, int]):
         """
         Draw an image on the screen.
 
@@ -153,7 +153,7 @@ class UIBackend:
         """
         raise NotImplementedError
 
-    def load_sound(self, sound_path: str, sound_id: int | str):
+    def load_sound(self, sound_path: str, sound_id: str):
         """
         LoS a sound effect.
 
@@ -163,7 +163,7 @@ class UIBackend:
         """
         raise NotImplementedError
 
-    def play_sound(self, sound_id: int | str):
+    def play_sound(self, sound_id):
         """
         Play a sound effect.
 
@@ -233,7 +233,7 @@ class PsychoPyUIBackend(UIBackend):
         self.line_stim.lineWidth = line_width
         self.line_stim.draw()
 
-    def draw_image(self, img: np.ndarray | str, rect: Tuple[int, int, int, int]):
+    def draw_image(self, img, rect: Tuple[int, int, int, int]):
         target_x, target_y, target_w, target_h = rect
         if isinstance(img, str):
             if img not in self._image_cache:
@@ -341,14 +341,14 @@ class PsychoPyUIBackend(UIBackend):
             raise ValueError(f"Unsupported unit: {self.win_unit}")
         return x_pygame, y_pygame
 
-    def load_sound(self, sound_path: str, sound_id: int | str):
+    def load_sound(self, sound_path: str, sound_id):
         sound_file = pygame.mixer.Sound(sound_path)
         self._sound_cache[sound_id] = sound_file
 
-    def play_sound(self, sound_id: int | str):
+    def play_sound(self, sound_id):
         self._sound_cache[sound_id].play()
 
-    def stop_sound(self, sound_id: int | str):
+    def stop_sound(self, sound_id):
         self._sound_cache[sound_id].stop()
 
     def draw_text_on_screen_center(self, text: str, font_name: str, font_size: int, text_color=(0, 0, 0)):
@@ -408,7 +408,7 @@ class PyGameUIBackend(UIBackend):
     def draw_line(self, sx, sy, ex, ey, color, line_width):
         pygame.draw.line(self.win, color, (sx, sy), (ex, ey), line_width)
 
-    def draw_image(self, img: np.ndarray | str, rect: Tuple[int, int, int, int]):
+    def draw_image(self, img, rect: Tuple[int, int, int, int]):
         if isinstance(img, str):
             if img not in self._image_cache:
                 image = pygame.image.load(img)
@@ -504,14 +504,14 @@ class PyGameUIBackend(UIBackend):
     def get_mouse_pos(self):
         return pygame.mouse.get_pos()
 
-    def load_sound(self, sound_path: str, sound_id: int | str):
+    def load_sound(self, sound_path: str, sound_id):
         sound_file = pygame.mixer.Sound(sound_path)
         self._sound_cache[sound_id] = sound_file
 
-    def play_sound(self, sound_id: int | str):
+    def play_sound(self, sound_id):
         self._sound_cache[sound_id].play()
 
-    def stop_sound(self, sound_id: int | str):
+    def stop_sound(self, sound_id):
         self._sound_cache[sound_id].stop()
 
     def draw_text_on_screen_center(self, text: str, font_name: str, font_size: int, text_color=(0, 0, 0)):
