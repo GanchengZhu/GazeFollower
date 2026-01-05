@@ -74,6 +74,15 @@ gaze_follower.release()
 
 More detailed usage information can be found [here](MORE_INFO.md).
 
+## New feature
+
+Using the BlazeFace model for face alignment to reduce inference time.
+
+```python
+gf = GazeFollower(camera=WebCamCamera(webcam_id=0),
+                  face_alignment=BlazeFaceAlignment())
+```
+
 ## Note
 
 This depository contains a model train on 7 million images that is sufficient for most applications. 
