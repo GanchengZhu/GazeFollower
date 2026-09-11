@@ -5,6 +5,8 @@ from tkinter import ttk, filedialog, messagebox
 import pygame
 from pathlib import Path
 
+from pygame import KEYDOWN, K_SPACE
+
 # Add the parent directory to PYTHONPATH if we want to run locally
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -17,7 +19,7 @@ class LauncherGUI:
     def __init__(self, root):
         self.root = root
         self.root.title("GazeFollower SDK - Test Launcher")
-        self.root.geometry("550x350")
+        self.root.geometry("1000x450")
         
         # Variables
         self.model_path_var = tk.StringVar(value="base.mnn")
@@ -51,7 +53,7 @@ class LauncherGUI:
         # Calibration Selection
         calib_frame = ttk.LabelFrame(main_frame, text="3. Calibration Algorithm", padding="10")
         calib_frame.pack(fill=tk.X, pady=5)
-        
+
         ttk.Radiobutton(calib_frame, text="Multivariate Ridge", variable=self.calib_var, value="MultivariateRidge").pack(side=tk.LEFT, padx=10)
         ttk.Radiobutton(calib_frame, text="SVR (Support Vector)", variable=self.calib_var, value="SVR").pack(side=tk.LEFT, padx=10)
         
@@ -69,7 +71,7 @@ class LauncherGUI:
         self.root.destroy()
         
         import gazefollower
-        res_dir = Path(gazefollower.__file__).parent / "res"
+        res_dir = Path(gazefollower.__file__).parent / "res" / "model_weights"
         
         model_val = self.model_path_var.get()
         if model_val in ["base.mnn", "mobilenet_v4.mnn"]:
