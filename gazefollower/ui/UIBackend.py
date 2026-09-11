@@ -210,8 +210,8 @@ class PsychoPyUIBackend(UIBackend):
                                           units='pix', anchor='top-left')
         self.text_stim = visual.TextStim(self.win, text='', font=self.font_name, color=None, colorSpace='rgb255',
                                          units="pix")
-        self.image_stim = visual.ImageStim(self.win, image=None, mask=None, colorSpace='rgb',
-                                           units="pix", anchor='top-left')
+        self.image_stim = visual.GratingStim(self.win, tex=None, mask=None, colorSpace='rgb',
+                                             units="pix")
         self.mouse = self.event.Mouse()
         self.win_unit = self.win.units
         self._image_cache = {}
@@ -261,12 +261,16 @@ class PsychoPyUIBackend(UIBackend):
         draw_y = target_y + offset_y
 
         # image = cv2.flip(image, 0)
-        psychopy_pos = self.pixel_to_psychopy_coordinate(draw_x, draw_y)
+        # GratingStim uses center anchor
+        center_x = draw_x + scaled_w / 2
+        center_y = draw_y + scaled_h / 2
+        psychopy_pos = self.pixel_to_psychopy_coordinate(center_x, center_y)
+        
         self.image_stim.pos = psychopy_pos
-        self.image_stim.image = image / 255.0
+        self.image_stim.tex = (image.astype(np.float32) - 127.5) / 127.5
         self.image_stim.size = (scaled_w, scaled_h)
-        self.image_stim.flipVert = True
-        self.image_stim.flipHoriz = True
+        # Flip both horizontally and vertically to match previous behavior
+        self.image_stim.tex = cv2.flip(self.image_stim.tex, -1)
         self.image_stim.draw()
 
     def draw_rect(self, rect: Tuple[int, int, int, int], color, line_width):
@@ -444,7 +448,12 @@ class PyGameUIBackend(UIBackend):
 
     def draw_text(self, text: str, font_name: str, font_size: int, text_color: Tuple[int, int, int],
                   rect: Tuple[int, int, int, int], align='center'):
-        font = pygame.font.SysFont(font_name, font_size)
+        try:
+            font = pygame.font.SysFont(font_name, font_size)
+        except Exception:
+            # Fallback for Windows registry bug (TypeError in initsysfonts_win32)
+            font = pygame.font.Font(None, font_size)
+            
         text_surface = font.render(text, True, text_color)
         text_rect = text_surface.get_rect()
         if align == 'center':

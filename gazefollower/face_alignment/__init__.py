@@ -4,3 +4,4 @@
 
 from .FaceAlignment import FaceAlignment
 from .MediaPipeFaceAlignment import MediaPipeFaceAlignment
+from .BlazeFaceAlignment import BlazeFaceAlignment

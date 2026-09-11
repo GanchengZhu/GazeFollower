@@ -1,4 +1,4 @@
-gaze_follower.pptx
+﻿gaze_follower.pptx
 gazefollower/res/model_weights/base_32M.mnn
 gazefollower.egg-info
 gazefollower_data_analysis
@@ -28,3 +28,6 @@ gazefollower/res/__pycache__
 gazefollower/ui/__pycache__
 .gitignore
 token
+example/customized_camera_native_library/
+example/customized_camera_example.py
+js_port/
