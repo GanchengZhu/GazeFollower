@@ -29,12 +29,13 @@ class MGazeNetGazeEstimator(GazeEstimator):
         Loads the model weights and sets up the interpreter and session for inference.
         """
         super().__init__()
-
+        print("model path: ", model_path)
         # Load model weights from the specified path
         if model_path == "":
             self.model_path = pathlib.Path(__file__).parent.parent / "res/model_weights/base.mnn"
         else:
             self.model_path = pathlib.Path(model_path).resolve()
+
 
         # Load model using MNN Module API
         try:

@@ -7,6 +7,7 @@ import pygame
 from pygame.locals import KEYDOWN, K_RETURN
 
 from gazefollower import GazeFollower
+from gazefollower.camera import WebCamCamera
 from gazefollower.gaze_estimator import MGazeNetGazeEstimator
 
 if __name__ == '__main__':
@@ -15,7 +16,7 @@ if __name__ == '__main__':
     win = pygame.display.set_mode((1920, 1080), pygame.FULLSCREEN)
 
     # init GazeFollower
-    gf = GazeFollower()
+    gf = GazeFollower(camera=WebCamCamera(webcam_id=0, cam_fps=30))
     # previewing
     gf.preview(win=win)
     # calibrating

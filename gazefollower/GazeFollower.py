@@ -30,12 +30,12 @@ from .ui import CameraPreviewerUI, CalibrationUI
 
 class GazeFollower:
 
-    def __init__(self, camera: Camera = WebCamCamera(),
-                 face_alignment: FaceAlignment = MediaPipeFaceAlignment(),
-                 gaze_estimator: GazeEstimator = MGazeNetGazeEstimator(),
-                 gaze_filter: Filter = HeuristicFilter(),
-                 calibration: Calibration = SVRCalibration(),
-                 config: DefaultConfig = DefaultConfig()):
+    def __init__(self, camera: Camera = None,
+                 face_alignment: FaceAlignment = None,
+                 gaze_estimator: GazeEstimator = None,
+                 gaze_filter: Filter = None,
+                 calibration: Calibration = None,
+                 config: DefaultConfig = None):
         """
         Initializes the main components of the eye-tracking system.
 
@@ -48,16 +48,15 @@ class GazeFollower:
         """
         self._create_session("my_session")
 
-        # eye tracking components
-        self.camera: Camera = camera
-        self.face_alignment: FaceAlignment = face_alignment
-        self.gaze_estimator: GazeEstimator = gaze_estimator
-        self.gaze_filter: Filter = gaze_filter
-        self.calibration: Calibration = calibration
+        # eye tracking components (lazy initialization)
+        self.camera = camera if camera is not None else WebCamCamera()
+        self.face_alignment = face_alignment if face_alignment is not None else MediaPipeFaceAlignment()
+        self.gaze_estimator = gaze_estimator if gaze_estimator is not None else MGazeNetGazeEstimator()
+        self.gaze_filter = gaze_filter if gaze_filter is not None else HeuristicFilter()
+        self.calibration = calibration if calibration is not None else SVRCalibration()
 
         # default config
-        self.config: DefaultConfig = config
-
+        self.config = config if config is not None else DefaultConfig()
         # set the camera to call process_frame method when a new image is captured
 
         self.camera.set_on_image_callback(self.process_frame)
@@ -72,15 +71,15 @@ class GazeFollower:
         self._trigger = 0
 
         # screen size
-        self.screen_size = config.screen_size
+        self.screen_size = self.config.screen_size
 
         # ui instance
         self.calibration_ui = None
         self.camera_previewer_ui = None
-        self._calibration_controller: CalibrationController = CalibrationController(config.cali_mode,
-                                                                                    config.camera_position,
+        self._calibration_controller: CalibrationController = CalibrationController(self.config.cali_mode,
+                                                                                    self.config.camera_position,
                                                                                     self.screen_size,
-                                                                                    config.screen_physical_size,
+                                                                                    self.config.screen_physical_size,
                                                                                     self.config.eye_blink_threshold)
 
         self._gaze_info = None

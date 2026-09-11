@@ -28,4 +28,3 @@ gazefollower/res/__pycache__
 gazefollower/ui/__pycache__
 .gitignore
 token
-gazefollower/res/model_weights/base.mnn
