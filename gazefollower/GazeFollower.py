@@ -483,19 +483,15 @@ class GazeFollower:
 
         self._session_name = session_name
         self._workSpace = pathlib.Path.home().joinpath("GazeFollower")
-
-        if not self._workSpace.exists():
-            self._workSpace.mkdir()
+        self._workSpace.mkdir(parents=True, exist_ok=True)
 
         # Set up the log directory
         _logDir = self._workSpace.joinpath("log")
-        if not _logDir.exists():
-            _logDir.mkdir()
+        _logDir.mkdir(parents=True, exist_ok=True)
 
         # Set up the temporary directory
         _tmpDir = self._workSpace.joinpath("tmp")
-        if not _tmpDir.exists():
-            _tmpDir.mkdir()
+        _tmpDir.mkdir(parents=True, exist_ok=True)
 
         _currentTime = datetime.datetime.now()
         _timeString = _currentTime.strftime("%Y_%m_%d_%H_%M_%S")

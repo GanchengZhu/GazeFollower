@@ -17,6 +17,10 @@ jobs:
         os: [ ubuntu-latest, windows-latest ]
         python-version: [ "3.9", "3.10", "3.11" ]
 
+    env:
+      SDL_VIDEODRIVER: "dummy"
+      SDL_AUDIODRIVER: "dummy"
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

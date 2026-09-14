@@ -37,8 +37,16 @@ class DefaultConfig:
         self.eye_blink_threshold = 10
         self.cali_mode = 13
 
-        self._monitors = get_monitors()
-        self.screen_size = np.array([self._monitors[0].width, self._monitors[0].height])
+        try:
+            self._monitors = get_monitors()
+            if self._monitors and len(self._monitors) > 0:
+                self.screen_size = np.array([self._monitors[0].width, self._monitors[0].height])
+            else:
+                self._monitors = []
+                self.screen_size = np.array([1920, 1080])
+        except Exception:
+            self._monitors = []
+            self.screen_size = np.array([1920, 1080])
 
         self._current_dir = Path(__file__).parent.parent.absolute()
         # Calibration resource file paths

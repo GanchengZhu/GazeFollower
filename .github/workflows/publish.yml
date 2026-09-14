@@ -12,6 +12,9 @@ jobs:
   test:
     name: Run tests before publishing
     runs-on: ubuntu-latest
+    env:
+      SDL_VIDEODRIVER: "dummy"
+      SDL_AUDIODRIVER: "dummy"
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
