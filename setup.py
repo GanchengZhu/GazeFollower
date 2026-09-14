@@ -41,7 +41,7 @@ setup(
     long_description=open('README.md', encoding='utf-8').read(),  # 或者使用其他文档文件
     long_description_content_type='text/markdown',  # 如果使用 Markdown 格式
     package_data={
-        package_name: ['res/audio/*', 'res/image/*', 'res/model_weights/base.mnn'],
+        package_name: ['res/audio/*', 'res/image/*', 'res/model_weights/*'],
     },
 
     install_requires=[

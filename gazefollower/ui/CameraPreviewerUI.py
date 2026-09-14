@@ -223,10 +223,10 @@ class CameraPreviewerUI(BaseUI):
             # for pygame
             self.backend.before_draw()
             # draw image previewer
-            self.backend.draw_image(self.frame_image, self.frame_rect)
-            self.backend.draw_image(self.face_image, self.face_rect)
-            self.backend.draw_image(self.left_eye_image, self.left_eye_rect)
-            self.backend.draw_image(self.right_eye_image, self.right_eye_rect)
+            self.backend.draw_texture(self.frame_image, self.frame_rect)
+            self.backend.draw_texture(self.face_image, self.face_rect)
+            self.backend.draw_texture(self.left_eye_image, self.left_eye_rect)
+            self.backend.draw_texture(self.right_eye_image, self.right_eye_rect)
             # draw texts
             self.backend.draw_text(self._frame_text, self.font_name, self.image_font_size,
                                    text_color=self._color_black, rect=self._frame_text_rect)

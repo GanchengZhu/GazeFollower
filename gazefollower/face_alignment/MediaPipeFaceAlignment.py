@@ -3,7 +3,11 @@
 # Email: zhugc2016@gmail.com
 
 import math
+import os
+import urllib.request
+from pathlib import Path
 
+import cv2
 import mediapipe as mp
 import numpy as np
 
@@ -11,14 +15,20 @@ from .FaceAlignment import FaceAlignment
 from ..misc import FaceInfo
 
 
+class _LandmarkPoint:
+    __slots__ = ('x', 'y', 'z')
+
+    def __init__(self, x: float, y: float, z: float):
+        self.x = x
+        self.y = y
+        self.z = z
+
+
 class MediaPipeFaceAlignment(FaceAlignment):
-    def __init__(self):
+    def __init__(self, model_path: str = None):
         """
         Initializes the MediaPipeFaceAlignment object.
-
-        This constructor sets up the MediaPipe face mesh parameters, including
-        detection and tracking confidence levels, and initializes the facial
-        landmarks' configuration.
+        Supports both modern MediaPipe Tasks API (FaceLandmarker) and legacy solutions API.
         """
         super().__init__()
         self.static_image_mode = False
@@ -26,15 +36,61 @@ class MediaPipeFaceAlignment(FaceAlignment):
         self.min_detection_confidence = 0.1
         self.min_tracking_confidence = 0.1
 
-        # Initialize MediaPipe FaceMesh solution
-        self.mp_face_mesh = mp.solutions.face_mesh
-        self.face_mesh = self.mp_face_mesh.FaceMesh(
-            self.static_image_mode,
-            self.max_num_faces,
-            True,
-            self.min_detection_confidence,
-            self.min_tracking_confidence
-        )
+        self.use_tasks_api = False
+        self.landmarker = None
+        self.face_mesh = None
+
+        # 1. Try modern MediaPipe Tasks API
+        try:
+            from mediapipe.tasks import python
+            from mediapipe.tasks.python import vision
+
+            resolved_model_path = model_path
+            if resolved_model_path is None:
+                default_path = Path(__file__).parent.parent / "res" / "model_weights" / "face_landmarker.task"
+                if not default_path.exists():
+                    default_path.parent.mkdir(parents=True, exist_ok=True)
+                    url = "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task"
+                    try:
+                        urllib.request.urlretrieve(url, str(default_path))
+                    except Exception:
+                        pass
+                if default_path.exists():
+                    resolved_model_path = str(default_path)
+
+            if resolved_model_path and os.path.exists(resolved_model_path):
+                base_options = python.BaseOptions(model_asset_path=resolved_model_path)
+                options = vision.FaceLandmarkerOptions(
+                    base_options=base_options,
+                    running_mode=vision.RunningMode.IMAGE,
+                    num_faces=self.max_num_faces,
+                    min_face_detection_confidence=self.min_detection_confidence,
+                    min_face_presence_confidence=self.min_detection_confidence,
+                    min_tracking_confidence=self.min_tracking_confidence,
+                    output_face_blendshapes=False,
+                    output_facial_transformation_matrixes=False,
+                )
+                self.landmarker = vision.FaceLandmarker.create_from_options(options)
+                self.use_tasks_api = True
+        except Exception:
+            self.use_tasks_api = False
+
+        # 2. Fallback to legacy solutions API if Tasks API is not available
+        if not self.use_tasks_api:
+            if hasattr(mp, 'solutions') and hasattr(mp.solutions, 'face_mesh'):
+                self.mp_face_mesh = mp.solutions.face_mesh
+                self.face_mesh = self.mp_face_mesh.FaceMesh(
+                    self.static_image_mode,
+                    self.max_num_faces,
+                    True,
+                    self.min_detection_confidence,
+                    self.min_tracking_confidence
+                )
+            else:
+                raise RuntimeError(
+                    "Neither MediaPipe Tasks FaceLandmarker (with face_landmarker.task) "
+                    "nor legacy mediapipe.solutions.face_mesh could be initialized."
+                )
 
         # Define vertex indices for lip and eye regions
         self.lip_vertices_index = [61, 91, 14, 178, 402, 324, 95]
@@ -78,27 +134,44 @@ class MediaPipeFaceAlignment(FaceAlignment):
         face_info.img_w = image_width
         face_info.img_h = image_height
 
-        outputs = self.face_mesh.process(image)
-        _multi_face_landmarks = outputs.multi_face_landmarks
-        if not _multi_face_landmarks:
-            face_info.status = False
-            face_info.can_gaze_estimation = False
-            return face_info
-        else:
-            # Normalised landmarks to pixel format
-            face_landmarks = _multi_face_landmarks[0].landmark
-            face_info.status = True
-            _face_mesh = []
+        if self.use_tasks_api:
+            rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_image)
+            result = self.landmarker.detect(mp_image)
+            if not result.face_landmarks or len(result.face_landmarks) == 0:
+                face_info.status = False
+                face_info.can_gaze_estimation = False
+                return face_info
 
-            for i in range(len(face_landmarks)):
-                face_landmarks[i].x = np.round(face_landmarks[i].x * image_width)
-                face_landmarks[i].y = np.round(face_landmarks[i].y * image_height)
-                face_landmarks[i].z = np.round(face_landmarks[i].z * image_width)
-                _face_mesh.append([face_landmarks[i].x, face_landmarks[i].y, face_landmarks[i].z])
-            _face_mesh = np.array(_face_mesh, dtype=np.int16)
-            # print(_face_mesh.shape)
-            # face_landmarks to numpy array
-            # np.savez_compressed(face_mesh_npz_path, face_mesh=_face_mesh)
+            raw_landmarks = result.face_landmarks[0]
+            scaled_landmarks = [
+                _LandmarkPoint(
+                    float(np.round(lm.x * image_width)),
+                    float(np.round(lm.y * image_height)),
+                    float(np.round(lm.z * image_width))
+                )
+                for lm in raw_landmarks
+            ]
+        else:
+            outputs = self.face_mesh.process(image)
+            _multi_face_landmarks = outputs.multi_face_landmarks
+            if not _multi_face_landmarks:
+                face_info.status = False
+                face_info.can_gaze_estimation = False
+                return face_info
+
+            raw_landmarks = _multi_face_landmarks[0].landmark
+            scaled_landmarks = [
+                _LandmarkPoint(
+                    float(np.round(lm.x * image_width)),
+                    float(np.round(lm.y * image_height)),
+                    float(np.round(lm.z * image_width))
+                )
+                for lm in raw_landmarks
+            ]
+
+        face_info.status = True
+        _face_mesh = np.array([[p.x, p.y, p.z] for p in scaled_landmarks], dtype=np.int16)
 
         # Computing face box from the face mesh
         max_x = np.max(_face_mesh[:, 0])
@@ -150,25 +223,25 @@ class MediaPipeFaceAlignment(FaceAlignment):
         # which means the left eye box is the right eye box in non-mirror.
 
         # split the distance between the inner eye corners into 100 units
-        scale = math.fabs(face_landmarks[362].x - face_landmarks[133].x) / 100
+        scale = math.fabs(scaled_landmarks[362].x - scaled_landmarks[133].x) / 100
         x_padding = 20  # padding the eye corners
         y_0 = 0.6  # less area for upper portion of the eye area
         y_1 = 0.4  # more area for the lower portion of the eye area
 
         # get the X-coords for the left eye
-        eye_left_xs = [face_landmarks[33].x - x_padding * scale, face_landmarks[133].x + x_padding * scale]
+        eye_left_xs = [scaled_landmarks[33].x - x_padding * scale, scaled_landmarks[133].x + x_padding * scale]
         # height of the eyebox is 0.75 of the width of the eyebox
         eye_left_height = math.fabs(eye_left_xs[0] - eye_left_xs[1]) * 0.75
         # get the Y-coords for the left eye
-        eye_left_y = (face_landmarks[33].y + face_landmarks[133].y) / 2.0
+        eye_left_y = (scaled_landmarks[33].y + scaled_landmarks[133].y) / 2.0
         eye_left_ys = [eye_left_y - eye_left_height * y_0, eye_left_y + eye_left_height * y_1]
 
         # get the X-coords for the right eye
-        eye_right_xs = [face_landmarks[362].x - x_padding * scale, face_landmarks[263].x + x_padding * scale]
+        eye_right_xs = [scaled_landmarks[362].x - x_padding * scale, scaled_landmarks[263].x + x_padding * scale]
         # height of the eyebox is 0.75 of the width of the eyebox
         eye_right_height = math.fabs(eye_right_xs[0] - eye_right_xs[1]) * 0.75
         # get the Y-coords for the right eye
-        eye_right_y = (face_landmarks[362].y + face_landmarks[263].y) / 2.0
+        eye_right_y = (scaled_landmarks[362].y + scaled_landmarks[263].y) / 2.0
         eye_right_ys = [eye_right_y - eye_right_height * y_0, eye_right_y + eye_right_height * y_1]
 
         # get the eye coords for json files
@@ -192,14 +265,16 @@ class MediaPipeFaceAlignment(FaceAlignment):
         # left-eye AREA
         left_vertices = _face_mesh[:, :2][self.left_vertices_index]
         left_eye_area = self.calculate_polygon_area(left_vertices)
-        left_eye_ear = np.abs(face_landmarks[33].y - face_landmarks[133].y) / np.abs(
-            face_landmarks[33].x - face_landmarks[133].x)
+        left_eye_ear = np.abs(scaled_landmarks[33].y - scaled_landmarks[133].y) / max(
+            1e-6, np.abs(scaled_landmarks[33].x - scaled_landmarks[133].x)
+        )
 
         # right-eye AREA
         right_vertices = _face_mesh[:, :2][self.right_vertices_index]
         right_eye_area = self.calculate_polygon_area(right_vertices)
-        right_eye_ear = np.abs(face_landmarks[362].y - face_landmarks[263].y) / np.abs(
-            face_landmarks[362].x - face_landmarks[263].x)
+        right_eye_ear = np.abs(scaled_landmarks[362].y - scaled_landmarks[263].y) / max(
+            1e-6, np.abs(scaled_landmarks[362].x - scaled_landmarks[263].x)
+        )
 
         face_info.face_rect = [  # x, y, w, h
             left_top_face_point[0],
@@ -230,4 +305,7 @@ class MediaPipeFaceAlignment(FaceAlignment):
         return face_info
 
     def release(self):
-        pass
+        if self.landmarker is not None and hasattr(self.landmarker, 'close'):
+            self.landmarker.close()
+        if self.face_mesh is not None and hasattr(self.face_mesh, 'close'):
+            self.face_mesh.close()

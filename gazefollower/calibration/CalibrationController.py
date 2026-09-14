@@ -69,6 +69,7 @@ class CalibrationController:
         self._each_point_onset_time = 0
         self.cali_model_fitted = False
         self.calibrating = False
+        self.is_point_collecting = False
 
     def update_position(self):
         if self.cali_mode == CalibrationMode.LISSAJOUS:
@@ -100,8 +101,10 @@ class CalibrationController:
         self.x = percent_point[0]
         self.y = percent_point[1]
         if self.cali_click_mode:
-            buf_len = len(self._current_point_features)
-            self.progress = min(100, int(np.round(buf_len * 100 / self._n_frame_need_collect)))
+            if not self.is_point_collecting:
+                self.progress = 0
+            else:
+                self.progress = min(100, int(np.round(self._n_frame_added * 100 / self._n_frame_need_collect)))
         else:
             self.progress = int(np.round(self._n_frame_added * 100 / self._n_frame_need_collect))
 
@@ -116,6 +119,7 @@ class CalibrationController:
         self._current_index = 0
         self.cali_model_fitted = False
         self.calibrating = True
+        self.is_point_collecting = False
         self._each_point_onset_time = time.time()
         self._lissajous_start_time = time.time()
 
@@ -135,6 +139,7 @@ class CalibrationController:
         """
         Scheme A (Point-and-Click):
         Called when the user clicks on the target dot.
+        Triggers frame collection for the current point (progress counts from 0 to 100).
         Lissajous calibration pattern does NOT support click (viewing-only).
         """
         if self.cali_mode == CalibrationMode.LISSAJOUS:
@@ -144,49 +149,14 @@ class CalibrationController:
         if not self.calibrating:
             return False
 
-        if self._current_index == 0:
-            # Warm-up center point clicked: advance to the first calibration point
-            Log.i("Warmup point clicked, advancing to calibration point 1")
-            self._current_index = 1
+        if not self.is_point_collecting:
+            self.is_point_collecting = True
+            self._n_frame_added = 0
+            self.progress = 0
             self._current_point_features.clear()
             self._current_point_labels.clear()
-            self._n_frame_added = 0
             self._each_point_onset_time = time.time()
-            self.update_position()
-            return True
-
-        if 1 <= self._current_index <= self.cali_mode.value:
-            point_idx = self._current_index - 1
-            # Commit collected features for this point
-            n_needed = self._n_frame_need_collect
-            if len(self._current_point_features) >= n_needed:
-                selected_features = self._current_point_features[-n_needed:]
-                selected_labels = self._current_point_labels[-n_needed:]
-            elif len(self._current_point_features) > 0:
-                indices = np.linspace(0, len(self._current_point_features) - 1, n_needed).round().astype(int)
-                selected_features = [self._current_point_features[i] for i in indices]
-                selected_labels = [self._current_point_labels[i] for i in indices]
-            else:
-                # If no frames collected yet, skip click advance until at least 1 valid frame is available
-                Log.d("No gaze features in buffer yet for click advance")
-                return False
-
-            self.feature_vectors[point_idx] = selected_features
-            self.label_vectors[point_idx] = selected_labels
-            self.feature_ids[point_idx] = [[point_idx]] * n_needed
-
-            Log.i(f"Point {self._current_index}/{self.cali_mode.value} calibrated via click")
-            self._current_index += 1
-            self._current_point_features.clear()
-            self._current_point_labels.clear()
-            self._n_frame_added = 0
-            self._each_point_onset_time = time.time()
-
-            if self._current_index == self.cali_mode.value + 1:
-                Log.i("All calibration points completed")
-                self.calibrating = False
-            else:
-                self.update_position()
+            Log.i(f"Target point {self._current_index} clicked. Collecting data (0 to 100)...")
             return True
 
         return False
@@ -250,22 +220,38 @@ class CalibrationController:
         self.update_position()
 
         if self.cali_click_mode:
-            # Buffer features while subject fixates on the dot; wait for click to advance
+            if not self.is_point_collecting:
+                return
+
             if gaze_info.status and gaze_info.features is not None and (
                     face_info.left_eye_openness > self.eye_blink_threshold) and (
                     face_info.right_eye_openness > self.eye_blink_threshold):
-                if self._current_index != 0:
+                if self._current_index != 0 and self._n_frame_added < self._n_frame_need_collect:
+                    self.feature_vectors[self._current_index - 1].append(gaze_info.features)
+                    self.feature_ids[self._current_index - 1].append([self._current_index - 1])
+
                     if self.physical_screen_size:
                         added_pos = px2cm((self.x * self.screen_size[0], self.y * self.screen_size[1]),
                                           self.cam_pos, self.physical_screen_size, self.screen_size)
                     else:
                         added_pos = [self.x, self.y]
-                    self._current_point_features.append(gaze_info.features)
-                    self._current_point_labels.append(added_pos)
-                    # Bound buffer size to last 90 frames
-                    if len(self._current_point_features) > 90:
-                        self._current_point_features.pop(0)
-                        self._current_point_labels.pop(0)
+                    self.label_vectors[self._current_index - 1].append(added_pos)
+
+                self._n_frame_added += 1
+                self.progress = min(100, int(np.round(self._n_frame_added * 100 / self._n_frame_need_collect)))
+
+                if self._n_frame_added >= self._n_frame_need_collect:
+                    Log.i(f"Point {self._current_index}/{self.cali_mode.value} collected 100%. Advancing.")
+                    self._current_index += 1
+                    self.is_point_collecting = False
+                    self._n_frame_added = 0
+                    self.progress = 0
+                    self._each_point_onset_time = time.time()
+                    if self._current_index == self.cali_mode.value + 1:
+                        Log.i("All calibration points completed")
+                        self.calibrating = False
+                    else:
+                        self.update_position()
             return
 
         # Automatic timer / frame-count based mode (default passive mode)

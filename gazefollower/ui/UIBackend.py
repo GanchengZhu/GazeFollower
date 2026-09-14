@@ -70,6 +70,16 @@ class UIBackend:
         """
         raise NotImplementedError
 
+    def draw_texture(self, img: np.ndarray, rect: Tuple[int, int, int, int]):
+        """
+        Draw an in-memory image, scaled to fill the given rectangle.
+
+        Parameters:
+            img (np.ndarray): (H, W, 3) RGB image data.
+            rect (Tuple[int, int, int, int]): Destination (x, y, width, height) in pixels.
+        """
+        raise NotImplementedError
+
     def draw_rect(self, rect: Tuple[int, int, int, int], color: Tuple[int, int, int], line_width: int):
         """
         Draw a rectangle on the screen.
@@ -229,6 +239,8 @@ class PsychoPyUIBackend(UIBackend):
         self.win_unit = self.win.units
         self._image_cache = {}
         self._sound_cache = {}
+        self.texture_cache = {}
+        self.visual = visual
         pygame.mixer.init()
 
     def draw_circle(self, x, y, radius, color):
@@ -246,18 +258,37 @@ class PsychoPyUIBackend(UIBackend):
         self.line_stim.lineWidth = line_width
         self.line_stim.draw()
 
-    def draw_image(self, img, rect: Tuple[int, int, int, int]):
-        target_x, target_y, target_w, target_h = rect
-        if isinstance(img, str):
-            if img not in self._image_cache:
-                cv_img = cv2.imread(img)
-                cv_img = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
-                self._image_cache[img] = cv_img
-            image = self._image_cache[img]
-            original_height, original_width = image.shape[:2]
+    def draw_texture(self, img: np.ndarray, rect: Tuple[int, int, int, int]):
+        if rect not in self.texture_cache:
+            x, y, w, h = rect
+            p_x, p_y = x + w // 2, y + h // 2
+            stim = self.visual.GratingStim(
+                win=self.win, tex=None, mask=None,
+                pos=self.pixel_to_psychopy_coordinate(p_x, p_y),
+                size=(w, h), colorSpace='rgb', units='pix'
+            )
+            self.texture_cache[rect] = stim
         else:
-            image = img
-            original_height, original_width = image.shape[:2]
+            stim = self.texture_cache[rect]
+        img = cv2.rotate(img, cv2.ROTATE_180)
+        img = cv2.flip(img, 1)
+        # PsychoPy colorSpace='rgb' requires normalizing 0-255 to -1.0 to 1.0
+        norm_img = (img / 127.5) - 1.0
+        stim.tex = norm_img
+        stim.draw()
+
+    def draw_image(self, img, rect: Tuple[int, int, int, int]):
+        if isinstance(img, np.ndarray):
+            self.draw_texture(img, rect)
+            return
+
+        target_x, target_y, target_w, target_h = rect
+        if img not in self._image_cache:
+            cv_img = cv2.imread(img)
+            cv_img = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
+            self._image_cache[img] = cv_img
+        image = self._image_cache[img]
+        original_height, original_width = image.shape[:2]
 
         aspect = original_width / original_height
         if (target_w / target_h) > aspect:
@@ -273,7 +304,6 @@ class PsychoPyUIBackend(UIBackend):
         draw_x = target_x + offset_x
         draw_y = target_y + offset_y
 
-        # image = cv2.flip(image, 0)
         # GratingStim uses center anchor
         center_x = draw_x + scaled_w / 2
         center_y = draw_y + scaled_h / 2
@@ -436,7 +466,18 @@ class PyGameUIBackend(UIBackend):
     def draw_line(self, sx, sy, ex, ey, color, line_width):
         pygame.draw.line(self.win, color, (sx, sy), (ex, ey), line_width)
 
+    def draw_texture(self, img: np.ndarray, rect: Tuple[int, int, int, int]):
+        # img shape is (H, W, 3) RGB, pygame surfarray expects (W, H, 3)
+        transposed_img = np.transpose(img, (1, 0, 2))
+        surface = pygame.surfarray.make_surface(transposed_img)
+        scaled_surface = pygame.transform.scale(surface, (int(rect[2]), int(rect[3])))
+        self.win.blit(scaled_surface, (int(rect[0]), int(rect[1])))
+
     def draw_image(self, img, rect: Tuple[int, int, int, int]):
+        if isinstance(img, np.ndarray):
+            self.draw_texture(img, rect)
+            return
+
         if isinstance(img, str):
             if img not in self._image_cache:
                 image = pygame.image.load(img)

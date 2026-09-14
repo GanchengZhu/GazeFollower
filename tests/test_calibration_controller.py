@@ -31,7 +31,8 @@ class TestCalibrationController(unittest.TestCase):
     def test_click_calibration_advancement(self):
         """
         Scheme A (Point-and-Click):
-        Verify that user click confirms dot and advances to the next point,
+        Verify that user click initiates 0-to-100 data collection for the dot,
+        advances automatically when 100% data is collected,
         and that feature shapes are properly aligned.
         """
         controller = CalibrationController(
@@ -43,33 +44,53 @@ class TestCalibrationController(unittest.TestCase):
         controller.new_session()
         self.assertTrue(controller.calibrating)
         self.assertEqual(controller._current_index, 0)
+        self.assertFalse(controller.is_point_collecting)
+        self.assertEqual(controller.progress, 0)
 
-        # Click warmup point (index 0) -> advances to point 1
+        # Click warmup point (index 0) -> begins collection
         clicked = controller.on_target_clicked()
         self.assertTrue(clicked)
-        self.assertEqual(controller._current_index, 1)
+        self.assertTrue(controller.is_point_collecting)
 
-        # Feed 15 frames for point 1
+        # Feed 45 frames for warmup point -> finishes and advances to point 1
         face_info, gaze_info = self._create_mock_face_gaze()
-        for _ in range(15):
+        for _ in range(45):
             controller.add_cali_feature(gaze_info, face_info)
 
-        # Click point 1 -> should commit data (resampled/padded to 45 frames) and advance to point 2
+        self.assertEqual(controller._current_index, 1)
+        self.assertFalse(controller.is_point_collecting)
+        self.assertEqual(controller.progress, 0)
+
+        # Before click on point 1, frames are ignored
+        controller.add_cali_feature(gaze_info, face_info)
+        self.assertEqual(controller.progress, 0)
+
+        # Click point 1 -> begins collection
         clicked = controller.on_target_clicked()
         self.assertTrue(clicked)
+        self.assertTrue(controller.is_point_collecting)
+
+        # Feed 45 frames -> progress reaches 100% and advances to point 2
+        for i in range(45):
+            controller.add_cali_feature(gaze_info, face_info)
+            expected_prog = min(100, int(np.round((i + 1) * 100 / 45)))
+            self.assertEqual(controller.progress, expected_prog if i < 44 else 0)
+
         self.assertEqual(controller._current_index, 2)
+        self.assertFalse(controller.is_point_collecting)
         self.assertEqual(len(controller.feature_vectors[0]), 45)
         self.assertEqual(len(controller.label_vectors[0]), 45)
 
         # Complete points 2, 3, 4, 5
         for pt in range(2, 6):
             self.assertEqual(controller._current_index, pt)
-            for _ in range(10):
-                controller.add_cali_feature(gaze_info, face_info)
             clicked = controller.on_target_clicked()
             self.assertTrue(clicked)
+            self.assertTrue(controller.is_point_collecting)
+            for _ in range(45):
+                controller.add_cali_feature(gaze_info, face_info)
 
-        # After point 5 is clicked, calibration should complete
+        # After point 5 reaches 100%, calibration should complete
         self.assertFalse(controller.calibrating)
         features_arr = np.array(controller.feature_vectors)
         self.assertEqual(features_arr.shape, (5, 45, 128))

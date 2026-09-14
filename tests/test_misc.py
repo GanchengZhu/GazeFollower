@@ -65,6 +65,16 @@ class TestMisc(unittest.TestCase):
         cfg.cali_click_mode = True
         self.assertIn("click", cfg.cali_instruction.lower())
 
+    def test_ui_backend_texture(self):
+        import pygame
+        from gazefollower.ui.UIBackend import PyGameUIBackend
+        pygame.init()
+        surface = pygame.Surface((640, 480))
+        backend = PyGameUIBackend(surface)
+        test_img = np.zeros((64, 64, 3), dtype=np.uint8)
+        backend.draw_texture(test_img, (10, 10, 50, 50))
+        backend.draw_image(test_img, (10, 10, 50, 50))
+
 
 if __name__ == '__main__':
     unittest.main()
