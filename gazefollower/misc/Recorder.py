@@ -86,10 +86,20 @@ class Recorder:
         # Initialize the font
         self.guidance_font = pygame.font.SysFont('Microsoft YaHei', 28)
 
-        self.monitors = get_monitors()
-        self.screen_size = np.array([self.monitors[0].width, self.monitors[0].height])
-        self.screen_width = self.monitors[0].width
-        self.screen_height = self.monitors[0].height
+        try:
+            self.monitors = get_monitors()
+            if self.monitors and len(self.monitors) > 0:
+                self.screen_width = self.monitors[0].width
+                self.screen_height = self.monitors[0].height
+            else:
+                self.monitors = []
+                self.screen_width = 1920
+                self.screen_height = 1080
+        except Exception:
+            self.monitors = []
+            self.screen_width = 1920
+            self.screen_height = 1080
+        self.screen_size = np.array([self.screen_width, self.screen_height])
         self.screen = pygame.display.set_mode(self.screen_size, pygame.FULLSCREEN)
 
         # Initialize the mixer and load sound

@@ -186,6 +186,19 @@ class UIBackend:
         """
         raise NotImplementedError
 
+    def check_mouse_click(self, rect=None) -> bool:
+        """
+        Check if a mouse click (left button) occurred.
+        If rect is provided, check if the click occurred inside the specified rect.
+
+        Parameters:
+            rect (Tuple[int, int, int, int], optional): Rectangle (x, y, width, height).
+
+        Returns:
+            bool: True if clicked, False otherwise.
+        """
+        raise NotImplementedError
+
 
 class PsychoPyUIBackend(UIBackend):
     def __init__(self, win):
@@ -396,6 +409,17 @@ class PsychoPyUIBackend(UIBackend):
             return pressed_keys[0]  # Return first matched key
         return None
 
+    def check_mouse_click(self, rect=None) -> bool:
+        buttons = self.mouse.getPressed()
+        is_pressed = bool(buttons[0]) if len(buttons) > 0 else False
+        clicked = is_pressed and not getattr(self, '_last_mouse_pressed', False)
+        self._last_mouse_pressed = is_pressed
+        if clicked:
+            pos = self.get_mouse_pos()
+            if rect is None or self.pos_in_rect(pos, rect):
+                return True
+        return False
+
 
 class PyGameUIBackend(UIBackend):
     def __init__(self, win, bg_color=(255, 255, 255)):
@@ -472,11 +496,11 @@ class PyGameUIBackend(UIBackend):
 
     def listen_event(self, host, skip_event=False):
         for event in pygame.event.get():
-            if skip_event:
-                continue
             if event.type == pygame.QUIT:
                 pygame.quit()
                 raise SystemExit
+            if skip_event:
+                continue
             if (event.type == pygame.MOUSEBUTTONDOWN
                     and hasattr(host, 'stop_button_rect')
                     and host.stop_button_rect is not None
@@ -486,6 +510,17 @@ class PyGameUIBackend(UIBackend):
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_SPACE:
                     host.running = False
+
+    def check_mouse_click(self, rect=None) -> bool:
+        """
+        Check for left mouse click events.
+        If rect is provided, check if the click occurred inside the rect.
+        """
+        for event in pygame.event.get(pygame.MOUSEBUTTONDOWN):
+            if event.button == 1:
+                if rect is None or self.pos_in_rect(event.pos, rect):
+                    return True
+        return False
 
     def listen_keys(self, key: Tuple):
         """

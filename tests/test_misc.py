@@ -51,6 +51,19 @@ class TestMisc(unittest.TestCase):
         cfg = DefaultConfig()
         self.assertIsNotNone(cfg.cali_instruction)
         self.assertIsNotNone(cfg.camera_position)
+        self.assertEqual(cfg.lissajous_frame_latency, 4)
+        self.assertFalse(cfg.cali_click_mode)
+
+        # Test Lissajous mode
+        cfg.cali_mode = 0
+        from gazefollower.misc import CalibrationMode
+        self.assertEqual(cfg.cali_mode, CalibrationMode.LISSAJOUS)
+        self.assertIn("Lissajous", cfg.cali_instruction)
+
+        # Test click mode
+        cfg.cali_mode = 9
+        cfg.cali_click_mode = True
+        self.assertIn("click", cfg.cali_instruction.lower())
 
 
 if __name__ == '__main__':

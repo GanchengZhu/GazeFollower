@@ -76,11 +76,18 @@ class GazeFollower:
         # ui instance
         self.calibration_ui = None
         self.camera_previewer_ui = None
-        self._calibration_controller: CalibrationController = CalibrationController(self.config.cali_mode,
-                                                                                    self.config.camera_position,
-                                                                                    self.screen_size,
-                                                                                    self.config.screen_physical_size,
-                                                                                    self.config.eye_blink_threshold)
+        self._calibration_controller: CalibrationController = CalibrationController(
+            cali_mode=self.config.cali_mode,
+            camera_pos=self.config.camera_position,
+            screen_size=self.screen_size,
+            physical_screen_size=self.config.screen_physical_size,
+            eye_blink_threshold=self.config.eye_blink_threshold,
+            cali_click_mode=self.config.cali_click_mode,
+            lissajous_frame_latency=self.config.lissajous_frame_latency,
+            lissajous_duration=self.config.lissajous_duration,
+            lissajous_freq_x=self.config.lissajous_freq_x,
+            lissajous_freq_y=self.config.lissajous_freq_y,
+        )
 
         self._gaze_info = None
 
@@ -213,7 +220,7 @@ class GazeFollower:
         else:
             backend_name = self.backend_name(win)
 
-        self.calibration_ui = CalibrationUI(win=win, backend_name=backend_name)
+        self.calibration_ui = CalibrationUI(win=win, backend_name=backend_name, config=self.config)
         while 1:
             # new session
             self._new_calibration_session()
