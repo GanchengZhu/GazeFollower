@@ -83,6 +83,7 @@ class MultiprocessGazeFollower:
             'calibration_type': 'svr' if isinstance(self.calibration, SVRCalibration) else 'ridge',
             'filter_type': 'one_euro' if isinstance(self.gaze_filter, OneEuroFilter) else 'heuristic',
         }
+        self.config_dict = config_dict
 
         # IPC Primitives
         ctx = multiprocessing.get_context("spawn")
@@ -122,12 +123,56 @@ class MultiprocessGazeFollower:
         else:
             backend_name = self.backend_name(win)
 
-        self.camera_previewer_ui = CameraPreviewerUI(
-            win=win, backend_name=backend_name, frame_queue=self._preview_queue
-        )
-        self._cmd_queue.put(('START_PREVIEW',))
+        self.camera_previewer_ui = CameraPreviewerUI(win=win, backend_name=backend_name)
+
+        import cv2
+        from ..camera import WebCamCamera
+        webcam_id = self.config_dict.get('webcam_id', 0)
+        local_cam = WebCamCamera(webcam_id=webcam_id)
+        if self.config_dict.get('face_alignment_type') == 'blazeface':
+            local_fa = BlazeFaceAlignment()
+        else:
+            local_fa = MediaPipeFaceAlignment()
+
+        def on_preview_frame(state, timestamp, frame):
+            face_info = local_fa.detect(timestamp, frame)
+            face_patch = None
+            left_eye_patch = None
+            right_eye_patch = None
+            if face_info.status and face_info.can_gaze_estimation:
+                face_patch = local_fa.crop_face(frame, face_info)
+                left_eye_patch = local_fa.crop_left_eye(frame, face_info)
+                right_eye_patch = local_fa.crop_right_eye(frame, face_info)
+
+                x, y, w, h = face_info.left_rect
+                cv2.rectangle(frame, (x, y), (x + w, y + h), color=(255, 0, 0), thickness=2)
+                x, y, w, h = face_info.right_rect
+                cv2.rectangle(frame, (x, y), (x + w, y + h), color=(0, 0, 255), thickness=2)
+
+                if face_patch is not None:
+                    fx, fy, fw, fh = face_info.face_rect
+                    lx, ly, lw, lh = face_info.left_rect
+                    relative_left_x = lx - fx
+                    relative_left_y = ly - fy
+                    cv2.rectangle(face_patch, (relative_left_x, relative_left_y),
+                                  (relative_left_x + lw, relative_left_y + lh), color=(255, 0, 0), thickness=2)
+                    rx, ry, rw, rh = face_info.right_rect
+                    relative_right_x = rx - fx
+                    relative_right_y = ry - fy
+                    cv2.rectangle(face_patch, (relative_right_x, relative_right_y),
+                                  (relative_right_x + rw, relative_right_y + rh), color=(0, 0, 255), thickness=2)
+
+            self.camera_previewer_ui.update_images(frame, face_patch, left_eye_patch, right_eye_patch)
+            self.camera_previewer_ui.face_info_dict = face_info.to_dict()
+
+        local_cam.set_on_image_callback(on_preview_frame)
+        local_cam.start_previewing()
         self.camera_previewer_ui.draw()
-        self._cmd_queue.put(('STOP_PREVIEW',))
+        local_cam.stop_previewing()
+        try:
+            local_fa.release()
+        except Exception:
+            pass
 
     def calibrate(self, win=None):
         if win is None:

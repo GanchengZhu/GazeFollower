@@ -14,7 +14,7 @@ class CameraPreviewerUI(BaseUI):
     Previewer for the camera device.
     """
 
-    def __init__(self, win, backend_name: str = "PyGame", bg_color=(255, 255, 255), frame_queue=None):
+    def __init__(self, win, backend_name: str = "PyGame", bg_color=(255, 255, 255)):
         """
         Initializes the CameraPreviewerUI with a specified backend.
 
@@ -22,10 +22,8 @@ class CameraPreviewerUI(BaseUI):
             win (psychopy.visual.Window|pygame.Surface): The window to use.
             backend_name (str): The name of the backend (PsychoPy) to use for rendering, default is 'PsychoPy'.
             bg_color (Tuple): Background color for pygame screen.
-            frame_queue (multiprocessing.Queue, optional): Queue providing preview frames in multiprocessing mode.
         """
         super().__init__(win, backend_name, bg_color)
-        self.frame_queue = frame_queue
         # layout margin
         self._margin = 25
         # face size and eye size
@@ -220,23 +218,6 @@ class CameraPreviewerUI(BaseUI):
         self.update_face_info(FaceInfo())
 
         while self.running:
-            # Poll multiprocessing frame queue if available
-            if self.frame_queue is not None:
-                try:
-                    while not self.frame_queue.empty():
-                        data = self.frame_queue.get_nowait()
-                        if data is not None:
-                            self.update_images(
-                                data.get('frame'),
-                                data.get('face_patch'),
-                                data.get('left_eye'),
-                                data.get('right_eye')
-                            )
-                            if 'face_info_dict' in data and data['face_info_dict'] is not None:
-                                self.face_info_dict = data['face_info_dict']
-                except Exception:
-                    pass
-
             # listen event
             self.backend.listen_event(self)
             # for pygame

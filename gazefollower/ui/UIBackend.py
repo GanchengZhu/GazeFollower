@@ -259,55 +259,39 @@ class PsychoPyUIBackend(UIBackend):
         self.line_stim.draw()
 
     def draw_texture(self, img: np.ndarray, rect: Tuple[int, int, int, int]):
+        self.draw_image(img, rect)
+
+    def draw_image(self, img: np.ndarray | str, rect: Tuple[int, int, int, int]):
         if img is None:
-            return
-        if isinstance(img, str):
-            self.draw_image(img, rect)
-            return
-        if not isinstance(img, np.ndarray) or img.size == 0:
-            return
-        if img.ndim == 2:
-            img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
-        elif img.ndim == 3 and img.shape[2] == 1:
-            img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
-        elif img.ndim != 3:
-            return
-
-        if rect not in self.texture_cache:
-            x, y, w, h = rect
-            p_x, p_y = x + w // 2, y + h // 2
-            stim = self.visual.GratingStim(
-                win=self.win, tex=None, mask=None,
-                pos=self.pixel_to_psychopy_coordinate(p_x, p_y),
-                size=(w, h), colorSpace='rgb', units='pix'
-            )
-            self.texture_cache[rect] = stim
-        else:
-            stim = self.texture_cache[rect]
-        img = cv2.rotate(img, cv2.ROTATE_180)
-        img = cv2.flip(img, 1)
-        # PsychoPy colorSpace='rgb' requires normalizing 0-255 to -1.0 to 1.0
-        norm_img = (img / 127.5) - 1.0
-        stim.tex = norm_img
-        stim.draw()
-
-    def draw_image(self, img, rect: Tuple[int, int, int, int]):
-        if img is None:
-            return
-
-        if isinstance(img, np.ndarray):
-            self.draw_texture(img, rect)
             return
 
         target_x, target_y, target_w, target_h = rect
-        if img not in self._image_cache:
-            cv_img = cv2.imread(img)
-            if cv_img is None:
+
+        if isinstance(img, str):
+            if img not in self._image_cache:
+                cv_img = cv2.imread(img)
+                if cv_img is None:
+                    return
+                cv_img = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
+                self._image_cache[img] = cv_img
+            image = self._image_cache[img]
+        elif isinstance(img, np.ndarray):
+            if img.size == 0:
                 return
-            cv_img = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
-            self._image_cache[img] = cv_img
-        image = self._image_cache[img]
+            if img.ndim == 2:
+                image = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+            elif img.ndim == 3 and img.shape[2] == 1:
+                image = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+            elif img.ndim == 3:
+                image = img
+            else:
+                return
+        else:
+            return
+
         original_height, original_width = image.shape[:2]
+        if original_height == 0 or original_width == 0:
+            return
 
         aspect = original_width / original_height
         if (target_w / target_h) > aspect:
@@ -323,17 +307,26 @@ class PsychoPyUIBackend(UIBackend):
         draw_x = target_x + offset_x
         draw_y = target_y + offset_y
 
-        # GratingStim uses center anchor
-        center_x = draw_x + scaled_w / 2
-        center_y = draw_y + scaled_h / 2
-        psychopy_pos = self.pixel_to_psychopy_coordinate(center_x, center_y)
-        
-        self.image_stim.pos = psychopy_pos
-        self.image_stim.tex = (image.astype(np.float32) - 127.5) / 127.5
-        self.image_stim.size = (scaled_w, scaled_h)
-        # Flip both horizontally and vertically to match previous behavior
-        self.image_stim.tex = cv2.flip(self.image_stim.tex, -1)
-        self.image_stim.draw()
+        cache_key = (draw_x, draw_y, scaled_w, scaled_h)
+        if cache_key not in self.texture_cache:
+            p_x = draw_x + scaled_w // 2
+            p_y = draw_y + scaled_h // 2
+            stim = self.visual.GratingStim(
+                win=self.win, tex=None, mask=None,
+                pos=self.pixel_to_psychopy_coordinate(p_x, p_y),
+                size=(scaled_w, scaled_h), colorSpace='rgb', units='pix'
+            )
+            self.texture_cache[cache_key] = stim
+        else:
+            stim = self.texture_cache[cache_key]
+
+        # Referencing Pupilio's draw_texture: rotate 180 and flip horizontally
+        img_rot = cv2.rotate(image, cv2.ROTATE_180)
+        img_rot = cv2.flip(img_rot, 1)
+        # PsychoPy colorSpace='rgb' requires -1.0 to 1.0
+        norm_img = (img_rot.astype(np.float32) / 127.5) - 1.0
+        stim.tex = norm_img
+        stim.draw()
 
     def draw_rect(self, rect: Tuple[int, int, int, int], color, line_width):
         fill_color = color if line_width == 0 else None
@@ -486,32 +479,10 @@ class PyGameUIBackend(UIBackend):
         pygame.draw.line(self.win, color, (sx, sy), (ex, ey), line_width)
 
     def draw_texture(self, img: np.ndarray, rect: Tuple[int, int, int, int]):
+        self.draw_image(img, rect)
+
+    def draw_image(self, img: np.ndarray | str, rect: Tuple[int, int, int, int]):
         if img is None:
-            return
-        if isinstance(img, str):
-            self.draw_image(img, rect)
-            return
-        if not isinstance(img, np.ndarray) or img.size == 0:
-            return
-        if img.ndim == 2:
-            img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
-        elif img.ndim == 3 and img.shape[2] == 1:
-            img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
-        elif img.ndim != 3:
-            return
-
-        # img shape is (H, W, 3) RGB, pygame surfarray expects (W, H, 3)
-        transposed_img = np.transpose(img, (1, 0, 2))
-        surface = pygame.surfarray.make_surface(transposed_img)
-        scaled_surface = pygame.transform.scale(surface, (int(rect[2]), int(rect[3])))
-        self.win.blit(scaled_surface, (int(rect[0]), int(rect[1])))
-
-    def draw_image(self, img, rect: Tuple[int, int, int, int]):
-        if img is None:
-            return
-
-        if isinstance(img, np.ndarray):
-            self.draw_texture(img, rect)
             return
 
         if isinstance(img, str):
@@ -519,6 +490,15 @@ class PyGameUIBackend(UIBackend):
                 image = pygame.image.load(img)
                 self._image_cache[img] = image
             image = self._image_cache[img]
+        elif isinstance(img, np.ndarray):
+            if img.size == 0:
+                return
+            if img.ndim == 2:
+                img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+            elif img.ndim == 3 and img.shape[2] == 1:
+                img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+            img_rot = cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE)
+            image = pygame.surfarray.make_surface(img_rot)
         else:
             return
 

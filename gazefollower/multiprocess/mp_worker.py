@@ -69,47 +69,7 @@ def mp_worker_entry(cmd_queue, preview_queue, cali_feature_queue, gaze_queue, co
 
     def on_frame(state, timestamp, frame):
         nonlocal trigger, sample_stream
-        if state == CameraRunningState.PREVIEWING:
-            face_info = face_alignment.detect(timestamp, frame)
-            face_patch, left_eye_patch, right_eye_patch = None, None, None
-
-            if face_info.status and face_info.can_gaze_estimation:
-                face_patch = clip_patch(frame, face_info.face_rect)
-                left_eye_patch = clip_patch(frame, face_info.left_rect)
-                right_eye_patch = clip_patch(frame, face_info.right_rect)
-
-                if face_patch is not None:
-                    fx, fy, fw, fh = face_info.face_rect
-                    lx, ly, lw, lh = face_info.left_rect
-                    rx, ry, rw, rh = face_info.right_rect
-                    cv2.rectangle(face_patch, (lx - fx, ly - fy),
-                                  (lx - fx + lw, ly - fy + lh), (255, 0, 0), 2)
-                    cv2.rectangle(face_patch, (rx - fx, ry - fy),
-                                  (rx - fx + rw, ry - fy + rh), (0, 0, 255), 2)
-
-                lx, ly, lw, lh = face_info.left_rect
-                rx, ry, rw, rh = face_info.right_rect
-                cv2.rectangle(frame, (lx, ly), (lx + lw, ly + lh), (255, 0, 0), 2)
-                cv2.rectangle(frame, (rx, ry), (rx + rw, ry + rh), (0, 0, 255), 2)
-
-            data = {
-                'frame': frame,
-                'face_patch': face_patch,
-                'left_eye': left_eye_patch,
-                'right_eye': right_eye_patch,
-                'face_info_dict': face_info.to_dict()
-            }
-            if preview_queue.full():
-                try:
-                    preview_queue.get_nowait()
-                except Exception:
-                    pass
-            try:
-                preview_queue.put_nowait(data)
-            except Exception:
-                pass
-
-        elif state == CameraRunningState.CALIBRATING:
+        if state == CameraRunningState.CALIBRATING:
             face_info = face_alignment.detect(timestamp, frame)
             gaze_info = gaze_estimator.detect(frame, face_info)
             try:

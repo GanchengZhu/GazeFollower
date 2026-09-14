@@ -56,7 +56,7 @@ class DefaultConfig:
         self.lissajous_freq_y = 1.0 / 8.0
 
         # Processing mode: multiprocessing vs multithreading
-        self.use_multiprocessing = False
+        self.use_multiprocessing = True
 
         self._monitors = []
         self.screen_size = np.array([1920, 1080])

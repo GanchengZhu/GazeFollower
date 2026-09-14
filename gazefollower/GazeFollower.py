@@ -36,8 +36,12 @@ class GazeFollower:
                 gaze_filter: Filter = None,
                 calibration: Calibration = None,
                 config: DefaultConfig = None,
-                use_multiprocessing: bool = False):
-        mp = use_multiprocessing or (config is not None and getattr(config, 'use_multiprocessing', False))
+                use_multiprocessing: bool = True):
+        if config is not None and hasattr(config, 'use_multiprocessing'):
+            mp = config.use_multiprocessing
+        else:
+            mp = use_multiprocessing
+
         if mp:
             from .multiprocess import MultiprocessGazeFollower
             return MultiprocessGazeFollower(camera=camera,
@@ -54,7 +58,7 @@ class GazeFollower:
                  gaze_filter: Filter = None,
                  calibration: Calibration = None,
                  config: DefaultConfig = None,
-                 use_multiprocessing: bool = False):
+                 use_multiprocessing: bool = True):
         """
         Initializes the main components of the eye-tracking system.
 

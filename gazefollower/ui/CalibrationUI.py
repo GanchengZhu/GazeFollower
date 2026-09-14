@@ -137,12 +137,11 @@ class CalibrationUI(BaseUI):
             # Scheme A (Point-and-Click):
             # Lissajous pattern does NOT support click (viewing-only)
             if not is_lissajous and cali_controller.cali_click_mode:
-                if not cali_controller.is_point_collecting:
-                    click_rect = (draw_rect[0] - 20, draw_rect[1] - 20,
-                                  draw_rect[2] + 40, draw_rect[3] + 40)
-                    if self.backend.check_mouse_click(click_rect):
-                        self.backend.play_sound(self._sound_id)
-                        cali_controller.on_target_clicked()
+                click_rect = (draw_rect[0] - 20, draw_rect[1] - 20,
+                              draw_rect[2] + 40, draw_rect[3] + 40)
+                if self.backend.check_mouse_click(click_rect):
+                    self.backend.play_sound(self._sound_id)
+                    cali_controller.on_target_clicked()
             elif is_lissajous:
                 # Update continuous trajectory based on elapsed time
                 cali_controller.update_position()
@@ -164,10 +163,7 @@ class CalibrationUI(BaseUI):
             if is_lissajous:
                 progress_str = f"{cali_controller.progress}%"
             elif cali_controller.cali_click_mode:
-                if not cali_controller.is_point_collecting:
-                    progress_str = "Click"
-                else:
-                    progress_str = str(cali_controller.progress)
+                progress_str = "Click"
             else:
                 progress_str = str(cali_controller.progress)
 
