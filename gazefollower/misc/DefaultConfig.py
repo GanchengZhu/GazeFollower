@@ -55,6 +55,9 @@ class DefaultConfig:
         self.lissajous_freq_x = 1.0 / 12.0
         self.lissajous_freq_y = 1.0 / 8.0
 
+        # Processing mode: multiprocessing vs multithreading
+        self.use_multiprocessing = False
+
         self._monitors = []
         self.screen_size = np.array([1920, 1080])
         if get_monitors is not None:

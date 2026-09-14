@@ -30,12 +30,31 @@ from .ui import CameraPreviewerUI, CalibrationUI
 
 class GazeFollower:
 
+    def __new__(cls, camera: Camera = None,
+                face_alignment: FaceAlignment = None,
+                gaze_estimator: GazeEstimator = None,
+                gaze_filter: Filter = None,
+                calibration: Calibration = None,
+                config: DefaultConfig = None,
+                use_multiprocessing: bool = False):
+        mp = use_multiprocessing or (config is not None and getattr(config, 'use_multiprocessing', False))
+        if mp:
+            from .multiprocess import MultiprocessGazeFollower
+            return MultiprocessGazeFollower(camera=camera,
+                                            face_alignment=face_alignment,
+                                            gaze_estimator=gaze_estimator,
+                                            gaze_filter=gaze_filter,
+                                            calibration=calibration,
+                                            config=config)
+        return super().__new__(cls)
+
     def __init__(self, camera: Camera = None,
                  face_alignment: FaceAlignment = None,
                  gaze_estimator: GazeEstimator = None,
                  gaze_filter: Filter = None,
                  calibration: Calibration = None,
-                 config: DefaultConfig = None):
+                 config: DefaultConfig = None,
+                 use_multiprocessing: bool = False):
         """
         Initializes the main components of the eye-tracking system.
 

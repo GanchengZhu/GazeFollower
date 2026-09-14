@@ -30,6 +30,8 @@ class LauncherGUI:
         self.cali_mode_var = tk.StringVar(value="9")
         self.cali_click_mode_var = tk.BooleanVar(value=False)
         self.lissajous_latency_var = tk.IntVar(value=4)
+        self.backend_var = tk.StringVar(value="PyGame")
+        self.use_mp_var = tk.BooleanVar(value=True)
         
         self.create_widgets()
         self.on_cali_mode_changed()
@@ -97,6 +99,25 @@ class LauncherGUI:
         self.latency_spin.pack(side=tk.LEFT, padx=5)
         self.latency_desc = ttk.Label(latency_row, text="(Compensates for camera ISP & frame buffer delay, default: 4)", font=("Segoe UI", 9, "italic"))
         self.latency_desc.pack(side=tk.LEFT, padx=5)
+
+        # 6. UI Backend & Process Isolation Settings
+        backend_frame = ttk.LabelFrame(main_frame, text="6. UI Backend & Process Isolation", padding="10")
+        backend_frame.pack(fill=tk.X, pady=4)
+
+        backend_row = ttk.Frame(backend_frame)
+        backend_row.pack(fill=tk.X, pady=2)
+        ttk.Label(backend_row, text="UI Backend:").pack(side=tk.LEFT, padx=5)
+        ttk.Radiobutton(backend_row, text="PyGame", variable=self.backend_var, value="PyGame").pack(side=tk.LEFT, padx=10)
+        ttk.Radiobutton(backend_row, text="PsychoPy (Scientific)", variable=self.backend_var, value="PsychoPy").pack(side=tk.LEFT, padx=10)
+
+        mp_row = ttk.Frame(backend_frame)
+        mp_row.pack(fill=tk.X, pady=4)
+        self.mp_cb = ttk.Checkbutton(
+            mp_row,
+            text="Enable Multiprocessing (Isolates eye-tracking ML to separate process; recommended for PsychoPy)",
+            variable=self.use_mp_var
+        )
+        self.mp_cb.pack(side=tk.LEFT, padx=5)
         
         # Launch Button
         btn_frame = ttk.Frame(main_frame)
@@ -146,6 +167,11 @@ class LauncherGUI:
         if self.cali_mode_var.get() == "Lissajous":
             print(f" - Lissajous Latency: {self.lissajous_latency_var.get()} frames")
         
+        use_mp = bool(self.use_mp_var.get())
+        backend_choice = self.backend_var.get()
+        print(f" - UI Backend: {backend_choice}")
+        print(f" - Multiprocessing: {use_mp}")
+        
         # Initialize components based on selection
         if self.face_align_var.get() == "BlazeFace":
             face_alignment = BlazeFaceAlignment()
@@ -160,6 +186,7 @@ class LauncherGUI:
             calibration = SVRCalibration()
             
         config = DefaultConfig()
+        config.use_multiprocessing = use_mp
         mode_val = self.cali_mode_var.get()
         if mode_val == "Lissajous":
             config.cali_mode = CalibrationMode.LISSAJOUS
@@ -180,46 +207,103 @@ class LauncherGUI:
             face_alignment=face_alignment,
             gaze_estimator=gaze_estimator,
             calibration=calibration,
-            config=config
+            config=config,
+            use_multiprocessing=use_mp
         )
         
-        # Start the Pygame experiment
-        pygame.init()
         screen_w = int(config.screen_size[0])
         screen_h = int(config.screen_size[1])
-        win = pygame.display.set_mode((screen_w, screen_h), pygame.FULLSCREEN)
-        
-        gf.preview(win=win)
-        gf.calibrate(win=win)
-        gf.start_sampling()
-        pygame.time.wait(100)
-        
-        win.fill((128, 128, 128))
-        font = pygame.font.Font(None, 74)
-        text = font.render("Look around and press SPACE or ESC to exit", True, (255, 255, 255))
-        win.blit(text, (screen_w // 2 - text.get_width() // 2, screen_h // 2 - text.get_height() // 2))
-        pygame.display.flip()
-        
-        running = True
-        while running:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT or (event.type == KEYDOWN and event.key in (K_SPACE, pygame.K_ESCAPE)):
+
+        if backend_choice == "PsychoPy":
+            from psychopy import visual, event
+            win = visual.Window(
+                size=(screen_w, screen_h),
+                fullscr=True,
+                units='pix',
+                color=[128, 128, 128],
+                colorSpace='rgb255'
+            )
+            
+            gf.preview(win=win)
+            gf.calibrate(win=win)
+            gf.start_sampling()
+            
+            text_stim = visual.TextStim(
+                win,
+                text="Look around and press SPACE or ESC to exit",
+                color=[255, 255, 255],
+                colorSpace='rgb255',
+                height=36,
+                units='pix',
+                pos=(0, 0)
+            )
+            gaze_circle = visual.ShapeStim(
+                win,
+                vertices='circle',
+                size=(50, 50),
+                fillColor=None,
+                lineColor=[0, 255, 0],
+                lineWidth=4,
+                colorSpace='rgb255',
+                units='pix'
+            )
+            
+            running = True
+            while running:
+                keys = event.getKeys()
+                if 'space' in keys or 'escape' in keys:
                     running = False
-            
-            gaze_info = gf.get_gaze_info()
-            if gaze_info and gaze_info.status:
-                win.fill((128, 128, 128))
-                win.blit(text, (screen_w // 2 - text.get_width() // 2, screen_h // 2 - text.get_height() // 2))
-                gx = int(gaze_info.filtered_gaze_coordinates[0])
-                gy = int(gaze_info.filtered_gaze_coordinates[1])
-                pygame.draw.circle(win, (0, 255, 0), (gx, gy), 50, 5)
-                pygame.display.flip()
                 
-            pygame.time.wait(10)
+                text_stim.draw()
+                gaze_info = gf.get_gaze_info()
+                if gaze_info and gaze_info.status and gaze_info.filtered_gaze_coordinates is not None:
+                    gx, gy = gaze_info.filtered_gaze_coordinates
+                    p_x = gx - screen_w // 2
+                    p_y = -(gy - screen_h // 2)
+                    gaze_circle.pos = (p_x, p_y)
+                    gaze_circle.draw()
+                    
+                win.flip()
+                
+            gf.stop_sampling()
+            gf.release()
+            win.close()
+        else:
+            # Start the Pygame experiment
+            pygame.init()
+            win = pygame.display.set_mode((screen_w, screen_h), pygame.FULLSCREEN)
             
-        gf.stop_sampling()
-        gf.release()
-        pygame.quit()
+            gf.preview(win=win)
+            gf.calibrate(win=win)
+            gf.start_sampling()
+            pygame.time.wait(100)
+            
+            win.fill((128, 128, 128))
+            font = pygame.font.Font(None, 74)
+            text = font.render("Look around and press SPACE or ESC to exit", True, (255, 255, 255))
+            win.blit(text, (screen_w // 2 - text.get_width() // 2, screen_h // 2 - text.get_height() // 2))
+            pygame.display.flip()
+            
+            running = True
+            while running:
+                for ev in pygame.event.get():
+                    if ev.type == pygame.QUIT or (ev.type == KEYDOWN and ev.key in (K_SPACE, pygame.K_ESCAPE)):
+                        running = False
+                
+                gaze_info = gf.get_gaze_info()
+                if gaze_info and gaze_info.status:
+                    win.fill((128, 128, 128))
+                    win.blit(text, (screen_w // 2 - text.get_width() // 2, screen_h // 2 - text.get_height() // 2))
+                    gx = int(gaze_info.filtered_gaze_coordinates[0])
+                    gy = int(gaze_info.filtered_gaze_coordinates[1])
+                    pygame.draw.circle(win, (0, 255, 0), (gx, gy), 50, 5)
+                    pygame.display.flip()
+                    
+                pygame.time.wait(10)
+                
+            gf.stop_sampling()
+            gf.release()
+            pygame.quit()
 
 if __name__ == "__main__":
     root = tk.Tk()

@@ -123,5 +123,6 @@ class WebCamCamera(Camera):
 
     def release(self):
         self._camera_thread_running = False
-        self._camera_thread.join()
+        if self._camera_thread is not None:
+            self._camera_thread.join()
         self.close()
