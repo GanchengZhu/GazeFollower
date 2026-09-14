@@ -12,7 +12,7 @@ import numpy as np
 import pygame
 
 from .calibration import Calibration, CalibrationController
-from .calibration import SVRCalibration
+from .calibration import MultivariateRidgeCalibration
 from .camera import Camera
 from .camera import WebCamCamera
 from .face_alignment import FaceAlignment
@@ -44,7 +44,7 @@ class GazeFollower:
         face_alignment (FaceAlignment): The face alignment module, default is MediaPipeFaceAlignment.
         gaze_estimator (GazeEstimator): The gaze estimation module, default is GazeEstimator.
         gaze_filter (Filter): The gaze filter for smoothing estimation results, default is HeuristicFilter.
-        calibration (Calibration): The gaze calibration module, default is SVRCalibration.
+        calibration (Calibration): The gaze calibration module, default is MultivariateRidgeCalibration.
         """
         self._create_session("my_session")
 
@@ -53,7 +53,7 @@ class GazeFollower:
         self.face_alignment = face_alignment if face_alignment is not None else MediaPipeFaceAlignment()
         self.gaze_estimator = gaze_estimator if gaze_estimator is not None else MGazeNetGazeEstimator()
         self.gaze_filter = gaze_filter if gaze_filter is not None else HeuristicFilter()
-        self.calibration = calibration if calibration is not None else SVRCalibration()
+        self.calibration = calibration if calibration is not None else MultivariateRidgeCalibration()
 
         # default config
         self.config = config if config is not None else DefaultConfig()

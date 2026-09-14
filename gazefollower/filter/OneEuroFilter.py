@@ -166,7 +166,7 @@ class OneEuroFilter(Filter):
         :return: The filtered result.
         """
         # Update the frequency based on the elapsed time
-        if self.last_time != -1 and timestamp != -1:
+        if self.last_time != -1 and timestamp != -1 and (timestamp - self.last_time) > 0:
             self.freq = 1000.0 / (timestamp - self.last_time)
 
         self.last_time = timestamp  # Update the last timestamp

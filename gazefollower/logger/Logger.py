@@ -62,5 +62,18 @@ class Log:
 
     @classmethod
     def _check_logger(cls):
-        if cls.instance is None or cls.instance.logger is None:
-            raise Exception("Logger has not been initialized. Please call Log.init() first.")
+        with cls._lock:
+            if cls.instance is None or cls.instance.logger is None:
+                logger = logging.getLogger('gaze_follower_logger')
+                logger.setLevel(logging.INFO)
+                if not logger.hasHandlers():
+                    console_handler = logging.StreamHandler()
+                    console_handler.setLevel(logging.INFO)
+                    formatter = logging.Formatter(
+                        '%(asctime)s.%(msecs)03d - %(levelname)s - %(message)s',
+                        datefmt='%d-%b-%y %H:%M:%S'
+                    )
+                    console_handler.setFormatter(formatter)
+                    logger.addHandler(console_handler)
+                cls.instance = cls()
+                cls.instance.logger = logger

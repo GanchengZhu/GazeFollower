@@ -1,8 +1,8 @@
-﻿gaze_follower.pptx
+gaze_follower.pptx
 gazefollower/res/model_weights/base_32M.mnn
+gazefollower/res/model_weights/mobilenet_v4.mnn
 gazefollower.egg-info
 gazefollower_data_analysis
-tests
 build
 dist
 build.md

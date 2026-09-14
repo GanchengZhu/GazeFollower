@@ -9,8 +9,14 @@
 <i>Simple, Fast, Pythonic, Accurate</i><br/>
 
 <p>
+    <a href="https://github.com/GanchengZhu/GazeFollower/actions/workflows/test.yml">
+        <img src="https://github.com/GanchengZhu/GazeFollower/actions/workflows/test.yml/badge.svg" alt="Tests Status">
+    </a>
+    <a href="https://pypi.org/project/gazefollower/">
+        <img src="https://img.shields.io/pypi/v/gazefollower.svg" alt="PyPI Version">
+    </a>
     <img src="https://img.shields.io/github/languages/top/ganchengzhu/gazefollower" alt="Top language">
-    <img src="https://img.shields.io/badge/python-3.11-blue" alt="Python 3.11">
+    <img src="https://img.shields.io/badge/python-3.9%20%7C%203.10%20%7C%203.11-blue" alt="Python 3.9 | 3.10 | 3.11">
     <img src="https://img.shields.io/codacy/grade/e21ccd9e469d4b9abd69efeaaa587cc2" alt="Code quality">
 </p>
 </div>
@@ -73,40 +79,6 @@ gaze_follower.release()
 ```
 
 More detailed usage information can be found [here](MORE_INFO.md).
-
-## New Features
-
-### Fastest Edition (Extreme Performance)
-
-By combining `BlazeFace` for face alignment, `MGazeNet` (with the lightweight MobileNet V4 architecture), and our robust `MultivariateRidgeCalibration` algorithm, you can achieve the highest possible frame rates and accuracy on CPU devices.
-
-```python
-from gazefollower import GazeFollower
-from gazefollower.face_alignment import BlazeFaceAlignment
-from gazefollower.gaze_estimator import MGazeNetGazeEstimator
-from gazefollower.calibration import MultivariateRidgeCalibration
-
-gf = GazeFollower(
-    face_alignment=BlazeFaceAlignment(),
-    gaze_estimator=MGazeNetGazeEstimator(model_path='path/to/mobilenet_v4.mnn'),
-    calibration=MultivariateRidgeCalibration(alpha=0.1)
-)
-```
-
-### GUI Component Launcher
-
-For researchers conducting experiments, we've included an interactive GUI testing tool! Simply run:
-
-```bash
-python example/gui_launcher.py
-```
-
-This will open a visual dialogue where you can freely combine and test different components:
-- **Models**: Switch between `base.mnn` and `mobilenet_v4.mnn`
-- **Face Alignment**: Choose between `BlazeFace` (fastest) or `MediaPipe` (high precision)
-- **Calibration**: Choose between `Multivariate Ridge` or `SVR`
-
-This is the easiest way to test hardware compatibility and experiment setups before writing any code.
 
 ## Note
 
