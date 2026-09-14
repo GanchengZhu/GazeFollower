@@ -67,13 +67,32 @@ class TestMisc(unittest.TestCase):
 
     def test_ui_backend_texture(self):
         import pygame
+        from pathlib import Path
+        import gazefollower
         from gazefollower.ui.UIBackend import PyGameUIBackend
         pygame.init()
         surface = pygame.Surface((640, 480))
         backend = PyGameUIBackend(surface)
+
+        # 1. Standard 3D RGB array
         test_img = np.zeros((64, 64, 3), dtype=np.uint8)
         backend.draw_texture(test_img, (10, 10, 50, 50))
         backend.draw_image(test_img, (10, 10, 50, 50))
+
+        # 2. String file path (regression test for ValueError: axes don't match array)
+        img_path = str(Path(gazefollower.__file__).parent / "res" / "image" / "frame.jpg")
+        backend.draw_texture(img_path, (10, 10, 50, 50))
+        backend.draw_image(img_path, (10, 10, 50, 50))
+
+        # 3. 2D grayscale array
+        gray_img = np.zeros((64, 64), dtype=np.uint8)
+        backend.draw_texture(gray_img, (10, 10, 50, 50))
+        backend.draw_image(gray_img, (10, 10, 50, 50))
+
+        # 4. None and empty
+        backend.draw_texture(None, (10, 10, 50, 50))
+        backend.draw_image(None, (10, 10, 50, 50))
+        backend.draw_texture(np.array([]), (10, 10, 50, 50))
 
 
 if __name__ == '__main__':

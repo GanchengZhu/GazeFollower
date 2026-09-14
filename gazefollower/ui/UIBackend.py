@@ -259,6 +259,20 @@ class PsychoPyUIBackend(UIBackend):
         self.line_stim.draw()
 
     def draw_texture(self, img: np.ndarray, rect: Tuple[int, int, int, int]):
+        if img is None:
+            return
+        if isinstance(img, str):
+            self.draw_image(img, rect)
+            return
+        if not isinstance(img, np.ndarray) or img.size == 0:
+            return
+        if img.ndim == 2:
+            img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+        elif img.ndim == 3 and img.shape[2] == 1:
+            img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+        elif img.ndim != 3:
+            return
+
         if rect not in self.texture_cache:
             x, y, w, h = rect
             p_x, p_y = x + w // 2, y + h // 2
@@ -278,6 +292,9 @@ class PsychoPyUIBackend(UIBackend):
         stim.draw()
 
     def draw_image(self, img, rect: Tuple[int, int, int, int]):
+        if img is None:
+            return
+
         if isinstance(img, np.ndarray):
             self.draw_texture(img, rect)
             return
@@ -285,6 +302,8 @@ class PsychoPyUIBackend(UIBackend):
         target_x, target_y, target_w, target_h = rect
         if img not in self._image_cache:
             cv_img = cv2.imread(img)
+            if cv_img is None:
+                return
             cv_img = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
             self._image_cache[img] = cv_img
         image = self._image_cache[img]
@@ -467,6 +486,20 @@ class PyGameUIBackend(UIBackend):
         pygame.draw.line(self.win, color, (sx, sy), (ex, ey), line_width)
 
     def draw_texture(self, img: np.ndarray, rect: Tuple[int, int, int, int]):
+        if img is None:
+            return
+        if isinstance(img, str):
+            self.draw_image(img, rect)
+            return
+        if not isinstance(img, np.ndarray) or img.size == 0:
+            return
+        if img.ndim == 2:
+            img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+        elif img.ndim == 3 and img.shape[2] == 1:
+            img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+        elif img.ndim != 3:
+            return
+
         # img shape is (H, W, 3) RGB, pygame surfarray expects (W, H, 3)
         transposed_img = np.transpose(img, (1, 0, 2))
         surface = pygame.surfarray.make_surface(transposed_img)
@@ -474,6 +507,9 @@ class PyGameUIBackend(UIBackend):
         self.win.blit(scaled_surface, (int(rect[0]), int(rect[1])))
 
     def draw_image(self, img, rect: Tuple[int, int, int, int]):
+        if img is None:
+            return
+
         if isinstance(img, np.ndarray):
             self.draw_texture(img, rect)
             return
@@ -483,10 +519,8 @@ class PyGameUIBackend(UIBackend):
                 image = pygame.image.load(img)
                 self._image_cache[img] = image
             image = self._image_cache[img]
-
         else:
-            img = cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE)
-            image = pygame.surfarray.make_surface(img)
+            return
 
         original_width, original_height = image.get_size()
         target_width, target_height = rect[2], rect[3]
