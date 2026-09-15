@@ -239,7 +239,7 @@ class PsychoPyUIBackend(UIBackend):
                                           units='pix', anchor='top-left')
         self.text_stim = visual.TextStim(self.win, text='', font=self.font_name, color=None, colorSpace='rgb255',
                                          units="pix")
-        self.image_stim = visual.ImageStim(self.win, image=None, mask=None, units="pix")
+        self.image_stim = visual.ImageStim(self.win, image=None, mask=None, interpolate=False, units="pix")
         self.mouse = self.event.Mouse()
         self.win_unit = self.win.units
         self._image_cache = {}
@@ -315,6 +315,7 @@ class PsychoPyUIBackend(UIBackend):
             p_y = draw_y + scaled_h // 2
             stim = self.visual.ImageStim(
                 win=self.win, image=None, mask=None,
+                interpolate=False,
                 pos=self.pixel_to_psychopy_coordinate(p_x, p_y),
                 size=(scaled_w, scaled_h), units='pix'
             )
@@ -322,7 +323,7 @@ class PsychoPyUIBackend(UIBackend):
         else:
             stim = self.texture_cache[cache_key]
 
-        norm_img = (image.astype(np.float32) / 127.5) - 1.0
+        norm_img = image.astype(np.float32) / 255.0
         stim.image = cv2.flip(norm_img, 0)
         stim.draw()
 
