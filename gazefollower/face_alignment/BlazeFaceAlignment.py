@@ -7,25 +7,36 @@ import cv2
 import numpy as np
 
 from gazefollower.face_alignment import FaceAlignment
-from gazefollower.misc import FaceInfo
+from gazefollower.misc import FaceInfo, OneEuroFilter
 
 
 class BlazeFaceAlignment(FaceAlignment):
     def __init__(self, model_path="",
-                 max_num_faces=1, min_confidence=0.5, min_iou_thresh=0.3):
+                 max_num_faces=1, min_confidence=0.5, min_iou_thresh=0.3,
+                 enable_filter: bool = True, filter_min_cutoff: float = 1.0, filter_beta: float = 0.01):
         """
-        Initializes the BlazeFaceAlignment object with MNN model.
+        Initializes the BlazeFaceAlignment object with MNN model and 1-Euro smoothing filters.
 
         Args:
             model_path: Path to the MNN model file
             max_num_faces: Maximum number of faces to detect
             min_confidence: Minimum confidence threshold for detection
             min_iou_thresh: Minimum IoU threshold for NMS
+            enable_filter: Whether to apply 1-Euro Filter to face/eye boxes and landmarks
+            filter_min_cutoff: Minimum cutoff frequency for 1-Euro Filter in Hz
+            filter_beta: Speed coefficient for 1-Euro Filter
         """
         super().__init__()
         self.max_num_faces = max_num_faces
         self.min_confidence = min_confidence
         self.min_iou_thresh = min_iou_thresh
+
+        # 1-Euro smoothing filters for bounding boxes and landmarks
+        self.enable_filter = enable_filter
+        self.face_rect_filter = OneEuroFilter(freq=30.0, min_cutoff=filter_min_cutoff, beta=filter_beta)
+        self.left_rect_filter = OneEuroFilter(freq=30.0, min_cutoff=filter_min_cutoff, beta=filter_beta)
+        self.right_rect_filter = OneEuroFilter(freq=30.0, min_cutoff=filter_min_cutoff, beta=filter_beta)
+        self.landmarks_filter = OneEuroFilter(freq=30.0, min_cutoff=filter_min_cutoff, beta=filter_beta)
 
         if model_path == "":
             self.model_path = pathlib.Path(__file__).parent.parent / "res/model_weights/blaze_face.mnn"
@@ -50,6 +61,15 @@ class BlazeFaceAlignment(FaceAlignment):
         self.left_vertices_index = [33, 246, 161, 160, 159, 158, 157, 173, 133, 155, 154, 153, 145, 144, 163, 7, 33]
         self.right_vertices_index = [362, 388, 384, 385, 386, 387, 388, 466, 263, 249, 380, 373, 374, 380, 381, 382,
                                      362]
+
+    def reset_filters(self):
+        """
+        Resets 1-Euro smoothing filter states.
+        """
+        self.face_rect_filter.reset()
+        self.left_rect_filter.reset()
+        self.right_rect_filter.reset()
+        self.landmarks_filter.reset()
 
     @staticmethod
     def calculate_polygon_area(vertices) -> float:
@@ -158,6 +178,7 @@ class BlazeFaceAlignment(FaceAlignment):
         if landmarks is None or len(landmarks) < 8:
             face_info.status = False
             face_info.can_gaze_estimation = False
+            self.reset_filters()
             return face_info
 
         # Extract key points (normalized coordinates)
@@ -175,6 +196,7 @@ class BlazeFaceAlignment(FaceAlignment):
         if x2 - x1 < 5 or y2 - y1 < 5:
             face_info.status = False
             face_info.can_gaze_estimation = False
+            self.reset_filters()
             return face_info
 
         face_width = x2 - x1
@@ -206,10 +228,45 @@ class BlazeFaceAlignment(FaceAlignment):
                 (1 - t) * ley_y * height + t * rey_y * height
             ]
 
-        # Set face rectangles
-        face_info.face_rect = [x1, y1, face_width, face_height]
-        face_info.left_rect = [left_eye_x1, left_eye_y1, eye_width, eye_height]
-        face_info.right_rect = [right_eye_x1, right_eye_y1, eye_width, eye_height]
+        # Apply 1-Euro Filter to face and eye bounding boxes
+        raw_face_rect = np.array([x1, y1, face_width, face_height], dtype=np.float64)
+        raw_left_rect = np.array([left_eye_x1, left_eye_y1, eye_width, eye_height], dtype=np.float64)
+        raw_right_rect = np.array([right_eye_x1, right_eye_y1, eye_width, eye_height], dtype=np.float64)
+
+        if self.enable_filter:
+            filtered_face_rect = self.face_rect_filter.filter(raw_face_rect, timestamp=timestamp)
+            filtered_left_rect = self.left_rect_filter.filter(raw_left_rect, timestamp=timestamp)
+            filtered_right_rect = self.right_rect_filter.filter(raw_right_rect, timestamp=timestamp)
+            face_landmarks_simple = self.landmarks_filter.filter(face_landmarks_simple, timestamp=timestamp)
+
+            fx, fy, fw, fh = filtered_face_rect
+            lx, ly, lw, lh = filtered_left_rect
+            rx, ry, rw, rh = filtered_right_rect
+
+            fx = max(0, min(int(round(fx)), image_width - 1))
+            fy = max(0, min(int(round(fy)), image_height - 1))
+            fw = max(5, min(int(round(fw)), image_width - fx))
+            fh = max(5, min(int(round(fh)), image_height - fy))
+
+            lx = max(0, min(int(round(lx)), image_width - 1))
+            ly = max(0, min(int(round(ly)), image_height - 1))
+            lw = max(5, min(int(round(lw)), image_width - lx))
+            lh = max(5, min(int(round(lh)), image_height - ly))
+
+            rx = max(0, min(int(round(rx)), image_width - 1))
+            ry = max(0, min(int(round(ry)), image_height - 1))
+            rw = max(5, min(int(round(rw)), image_width - rx))
+            rh = max(5, min(int(round(rh)), image_height - ry))
+
+            face_info.face_rect = [fx, fy, fw, fh]
+            face_info.left_rect = [lx, ly, lw, lh]
+            face_info.right_rect = [rx, ry, rw, rh]
+        else:
+            face_info.face_rect = [x1, y1, face_width, face_height]
+            face_info.left_rect = [left_eye_x1, left_eye_y1, eye_width, eye_height]
+            face_info.right_rect = [right_eye_x1, right_eye_y1, eye_width, eye_height]
+
+        face_info.face_landmarks = face_landmarks_simple
 
         # # Create full face mesh (468 points) for compatibility
         # # We'll interpolate from the detected points

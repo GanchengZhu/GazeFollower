@@ -32,6 +32,7 @@ class LauncherGUI:
         self.lissajous_latency_var = tk.IntVar(value=4)
         self.backend_var = tk.StringVar(value="PyGame")
         self.use_mp_var = tk.BooleanVar(value=True)
+        self.enable_face_filter_var = tk.BooleanVar(value=True)
         
         self.create_widgets()
         self.on_cali_mode_changed()
@@ -57,6 +58,7 @@ class LauncherGUI:
         
         ttk.Radiobutton(face_frame, text="BlazeFace (Fastest)", variable=self.face_align_var, value="BlazeFace").pack(side=tk.LEFT, padx=10)
         ttk.Radiobutton(face_frame, text="MediaPipe (High Precision)", variable=self.face_align_var, value="MediaPipe").pack(side=tk.LEFT, padx=10)
+        ttk.Checkbutton(face_frame, text="Enable 1-Euro Filter (reduces landmark & eye jitter)", variable=self.enable_face_filter_var).pack(side=tk.LEFT, padx=15)
         
         # 3. Calibration Algorithm Selection
         calib_frame = ttk.LabelFrame(main_frame, text="3. Calibration Algorithm", padding="10")
@@ -169,14 +171,16 @@ class LauncherGUI:
         
         use_mp = bool(self.use_mp_var.get())
         backend_choice = self.backend_var.get()
+        enable_face_filter = bool(self.enable_face_filter_var.get())
         print(f" - UI Backend: {backend_choice}")
         print(f" - Multiprocessing: {use_mp}")
+        print(f" - Face 1-Euro Filter: {enable_face_filter}")
         
         # Initialize components based on selection
         if self.face_align_var.get() == "BlazeFace":
-            face_alignment = BlazeFaceAlignment()
+            face_alignment = BlazeFaceAlignment(enable_filter=enable_face_filter)
         else:
-            face_alignment = MediaPipeFaceAlignment()
+            face_alignment = MediaPipeFaceAlignment(enable_filter=enable_face_filter)
             
         gaze_estimator = MGazeNetGazeEstimator(model_path=model_path)
         
@@ -187,6 +191,7 @@ class LauncherGUI:
             
         config = DefaultConfig()
         config.use_multiprocessing = use_mp
+        config.enable_face_filter = enable_face_filter
         mode_val = self.cali_mode_var.get()
         if mode_val == "Lissajous":
             config.cali_mode = CalibrationMode.LISSAJOUS

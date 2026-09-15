@@ -71,15 +71,22 @@ class GazeFollower:
         """
         self._create_session("my_session")
 
+        # default config
+        self.config = config if config is not None else DefaultConfig()
+
         # eye tracking components (lazy initialization)
         self.camera = camera if camera is not None else WebCamCamera()
-        self.face_alignment = face_alignment if face_alignment is not None else MediaPipeFaceAlignment()
+        if face_alignment is not None:
+            self.face_alignment = face_alignment
+        else:
+            self.face_alignment = MediaPipeFaceAlignment(
+                enable_filter=getattr(self.config, 'enable_face_filter', True),
+                filter_min_cutoff=getattr(self.config, 'filter_min_cutoff', 1.0),
+                filter_beta=getattr(self.config, 'filter_beta', 0.01)
+            )
         self.gaze_estimator = gaze_estimator if gaze_estimator is not None else MGazeNetGazeEstimator()
         self.gaze_filter = gaze_filter if gaze_filter is not None else HeuristicFilter()
         self.calibration = calibration if calibration is not None else MultivariateRidgeCalibration()
-
-        # default config
-        self.config = config if config is not None else DefaultConfig()
         # set the camera to call process_frame method when a new image is captured
 
         self.camera.set_on_image_callback(self.process_frame)

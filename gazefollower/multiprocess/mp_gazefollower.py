@@ -79,6 +79,9 @@ class MultiprocessGazeFollower:
             'eye_blink_threshold': self.config.eye_blink_threshold,
             'alpha': getattr(self.calibration, 'alpha', 0.1),
             'face_alignment_type': 'blazeface' if isinstance(face_alignment, BlazeFaceAlignment) else 'mediapipe',
+            'enable_face_filter': getattr(face_alignment, 'enable_filter', getattr(self.config, 'enable_face_filter', True)),
+            'filter_min_cutoff': getattr(face_alignment, 'filter_min_cutoff', getattr(self.config, 'filter_min_cutoff', 1.0)),
+            'filter_beta': getattr(face_alignment, 'filter_beta', getattr(self.config, 'filter_beta', 0.01)),
             'gaze_estimator_type': 'mgazenet',
             'calibration_type': 'svr' if isinstance(self.calibration, SVRCalibration) else 'ridge',
             'filter_type': 'one_euro' if isinstance(self.gaze_filter, OneEuroFilter) else 'heuristic',
@@ -130,10 +133,13 @@ class MultiprocessGazeFollower:
         from ..misc import clip_patch
         webcam_id = self.config_dict.get('webcam_id', 0)
         local_cam = WebCamCamera(webcam_id=webcam_id)
+        enable_filter = self.config_dict.get('enable_face_filter', True)
+        min_cutoff = self.config_dict.get('filter_min_cutoff', 1.0)
+        beta = self.config_dict.get('filter_beta', 0.01)
         if self.config_dict.get('face_alignment_type') == 'blazeface':
-            local_fa = BlazeFaceAlignment()
+            local_fa = BlazeFaceAlignment(enable_filter=enable_filter, filter_min_cutoff=min_cutoff, filter_beta=beta)
         else:
-            local_fa = MediaPipeFaceAlignment()
+            local_fa = MediaPipeFaceAlignment(enable_filter=enable_filter, filter_min_cutoff=min_cutoff, filter_beta=beta)
 
         def on_preview_frame(state, timestamp, frame):
             face_info = local_fa.detect(timestamp, frame)

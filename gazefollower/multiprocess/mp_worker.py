@@ -49,7 +49,12 @@ def mp_worker_entry(cmd_queue, preview_queue, cali_feature_queue, gaze_queue, co
     """
     camera = create_component(config_dict.get('camera_type', 'webcam'), 'camera',
                               {'webcam_id': config_dict.get('webcam_id', 0)})
-    face_alignment = create_component(config_dict.get('face_alignment_type', 'mediapipe'), 'face_alignment')
+    fa_kwargs = {
+        'enable_filter': config_dict.get('enable_face_filter', True),
+        'filter_min_cutoff': config_dict.get('filter_min_cutoff', 1.0),
+        'filter_beta': config_dict.get('filter_beta', 0.01),
+    }
+    face_alignment = create_component(config_dict.get('face_alignment_type', 'mediapipe'), 'face_alignment', fa_kwargs)
     gaze_estimator = create_component(config_dict.get('gaze_estimator_type', 'mgazenet'), 'gaze_estimator')
     calibration = create_component(config_dict.get('calibration_type', 'ridge'), 'calibration',
                                    {'alpha': config_dict.get('alpha', 0.1)})

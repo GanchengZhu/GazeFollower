@@ -7,6 +7,7 @@ from .Enumeration import *
 from .FaceInfo import *
 from .GazeInfo import *
 from .Recorder import *
+from .OneEuroFilter import *
 
 
 def clip_patch(frame, rect):

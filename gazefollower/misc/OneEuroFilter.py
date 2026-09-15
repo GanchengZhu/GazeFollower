@@ -3,7 +3,6 @@
 # Email: zhugc2016@gmail.com
 
 import numpy as np
-from .Filter import Filter
 
 
 class LowPassFilter:
@@ -35,7 +34,7 @@ class LowPassFilter:
         self.s = None
 
 
-class OneEuroFilter(Filter):
+class OneEuroFilter:
     """
     1-Euro Filter (Casiez et al., CHI 2012) with adaptive cutoff frequency.
     Supports scalars, bounding boxes [x, y, w, h], and multidimensional landmark coordinates.
@@ -45,13 +44,9 @@ class OneEuroFilter(Filter):
         min_cutoff (float): Minimum cutoff frequency in Hz (default 1.0).
         beta (float): Speed coefficient for dynamic cutoff (default 0.01).
         d_cutoff (float): Cutoff frequency for derivative filtering (default 1.0).
-        beta_ (float, optional): Alias for beta parameter for backwards compatibility.
     """
 
-    def __init__(self, freq: float = 30.0, min_cutoff: float = 1.0, beta: float = 0.01, d_cutoff: float = 1.0, beta_: float = None):
-        super().__init__()
-        if beta_ is not None:
-            beta = beta_
+    def __init__(self, freq: float = 30.0, min_cutoff: float = 1.0, beta: float = 0.01, d_cutoff: float = 1.0):
         self.freq = float(freq)
         self.min_cutoff = float(min_cutoff)
         self.beta = float(beta)
@@ -107,23 +102,10 @@ class OneEuroFilter(Filter):
             return float(filtered)
         return filtered
 
-    def filter_values(self, values, timestamp=-1):
-        """
-        Filter a list or array of values (Filter base class interface).
-        """
-        ts = None if timestamp == -1 else timestamp
-        res = self.filter(values, timestamp=ts)
-        if isinstance(values, list):
-            return res.tolist()
-        return res
-
     def reset(self):
         """
-        Resets internal filter states. Call this when tracking is lost or restarted.
+        Resets internal filter states. Call this when face tracking is lost or restarted.
         """
         self.x_filter.reset()
         self.dx_filter.reset()
         self.last_time = None
-
-    def release(self):
-        self.reset()

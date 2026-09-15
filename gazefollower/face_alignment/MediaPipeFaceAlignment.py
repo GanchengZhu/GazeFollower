@@ -12,7 +12,7 @@ import mediapipe as mp
 import numpy as np
 
 from .FaceAlignment import FaceAlignment
-from ..misc import FaceInfo
+from ..misc import FaceInfo, OneEuroFilter
 
 
 class _LandmarkPoint:
@@ -25,9 +25,10 @@ class _LandmarkPoint:
 
 
 class MediaPipeFaceAlignment(FaceAlignment):
-    def __init__(self, model_path: str = None):
+    def __init__(self, model_path: str = None,
+                 enable_filter: bool = True, filter_min_cutoff: float = 1.0, filter_beta: float = 0.01):
         """
-        Initializes the MediaPipeFaceAlignment object.
+        Initializes the MediaPipeFaceAlignment object with 1-Euro smoothing filters.
         Supports both modern MediaPipe Tasks API (FaceLandmarker) and legacy solutions API.
         """
         super().__init__()
@@ -35,6 +36,13 @@ class MediaPipeFaceAlignment(FaceAlignment):
         self.max_num_faces = 1
         self.min_detection_confidence = 0.1
         self.min_tracking_confidence = 0.1
+
+        # 1-Euro smoothing filters for bounding boxes and landmarks
+        self.enable_filter = enable_filter
+        self.face_rect_filter = OneEuroFilter(freq=30.0, min_cutoff=filter_min_cutoff, beta=filter_beta)
+        self.left_rect_filter = OneEuroFilter(freq=30.0, min_cutoff=filter_min_cutoff, beta=filter_beta)
+        self.right_rect_filter = OneEuroFilter(freq=30.0, min_cutoff=filter_min_cutoff, beta=filter_beta)
+        self.landmarks_filter = OneEuroFilter(freq=30.0, min_cutoff=filter_min_cutoff, beta=filter_beta)
 
         self.use_tasks_api = False
         self.landmarker = None
@@ -98,6 +106,15 @@ class MediaPipeFaceAlignment(FaceAlignment):
         self.right_vertices_index = [362, 388, 384, 385, 386, 387, 388, 466, 263, 249, 380, 373, 374, 380, 381, 382,
                                      362]
 
+    def reset_filters(self):
+        """
+        Resets 1-Euro smoothing filter states.
+        """
+        self.face_rect_filter.reset()
+        self.left_rect_filter.reset()
+        self.right_rect_filter.reset()
+        self.landmarks_filter.reset()
+
     @staticmethod
     def calculate_polygon_area(vertices) -> float:
         """
@@ -141,6 +158,7 @@ class MediaPipeFaceAlignment(FaceAlignment):
             if not result.face_landmarks or len(result.face_landmarks) == 0:
                 face_info.status = False
                 face_info.can_gaze_estimation = False
+                self.reset_filters()
                 return face_info
 
             raw_landmarks = result.face_landmarks[0]
@@ -158,6 +176,7 @@ class MediaPipeFaceAlignment(FaceAlignment):
             if not _multi_face_landmarks:
                 face_info.status = False
                 face_info.can_gaze_estimation = False
+                self.reset_filters()
                 return face_info
 
             raw_landmarks = _multi_face_landmarks[0].landmark
@@ -194,6 +213,7 @@ class MediaPipeFaceAlignment(FaceAlignment):
         if lip_position_y >= image_height:
             face_info.status = True
             face_info.can_gaze_estimation = False
+            self.reset_filters()
             return face_info
 
         face_height = math.fabs(min_y - max_y)
@@ -254,12 +274,14 @@ class MediaPipeFaceAlignment(FaceAlignment):
         if (left_top_eye_left_point[0] <= 0) or (left_top_eye_left_point[1] <= 0) \
                 or (right_bottom_eye_left_point[0] >= image_width) or (right_bottom_eye_left_point[1] >= image_height):
             face_info.can_gaze_estimation = False
+            self.reset_filters()
             return face_info
 
         if (left_top_eye_right_point[0] <= 0) or (left_top_eye_right_point[1] <= 0) \
                 or (right_bottom_eye_right_point[0] >= image_width) or (
                 right_bottom_eye_right_point[1] >= image_height):
             face_info.can_gaze_estimation = False
+            self.reset_filters()
             return face_info
 
         # left-eye AREA
@@ -276,26 +298,59 @@ class MediaPipeFaceAlignment(FaceAlignment):
             1e-6, np.abs(scaled_landmarks[362].x - scaled_landmarks[263].x)
         )
 
-        face_info.face_rect = [  # x, y, w, h
+        raw_face_rect = np.array([
             left_top_face_point[0],
             left_top_face_point[1],
             right_bottom_face_point[0] - left_top_face_point[0],
             right_bottom_face_point[1] - left_top_face_point[1],
-        ]
-        # left box (non-mirror)
-        face_info.left_rect = [  # x, y, w, h
+        ], dtype=np.float64)
+
+        raw_left_rect = np.array([
             left_top_eye_left_point[0],
             left_top_eye_left_point[1],
             right_bottom_eye_left_point[0] - left_top_eye_left_point[0],
             right_bottom_eye_left_point[1] - left_top_eye_left_point[1],
-        ]
-        # right box (non-mirror)
-        face_info.right_rect = [  # x, y, w, h
+        ], dtype=np.float64)
+
+        raw_right_rect = np.array([
             left_top_eye_right_point[0],
             left_top_eye_right_point[1],
             right_bottom_eye_right_point[0] - left_top_eye_right_point[0],
             right_bottom_eye_right_point[1] - left_top_eye_right_point[1],
-        ]
+        ], dtype=np.float64)
+
+        if self.enable_filter:
+            filtered_face_rect = self.face_rect_filter.filter(raw_face_rect, timestamp=timestamp)
+            filtered_left_rect = self.left_rect_filter.filter(raw_left_rect, timestamp=timestamp)
+            filtered_right_rect = self.right_rect_filter.filter(raw_right_rect, timestamp=timestamp)
+            _face_mesh = self.landmarks_filter.filter(_face_mesh, timestamp=timestamp)
+
+            fx, fy, fw, fh = filtered_face_rect
+            lx, ly, lw, lh = filtered_left_rect
+            rx, ry, rw, rh = filtered_right_rect
+
+            fx = max(0, min(int(round(fx)), image_width - 1))
+            fy = max(0, min(int(round(fy)), image_height - 1))
+            fw = max(5, min(int(round(fw)), image_width - fx))
+            fh = max(5, min(int(round(fh)), image_height - fy))
+
+            lx = max(0, min(int(round(lx)), image_width - 1))
+            ly = max(0, min(int(round(ly)), image_height - 1))
+            lw = max(5, min(int(round(lw)), image_width - lx))
+            lh = max(5, min(int(round(lh)), image_height - ly))
+
+            rx = max(0, min(int(round(rx)), image_width - 1))
+            ry = max(0, min(int(round(ry)), image_height - 1))
+            rw = max(5, min(int(round(rw)), image_width - rx))
+            rh = max(5, min(int(round(rh)), image_height - ry))
+
+            face_info.face_rect = [fx, fy, fw, fh]
+            face_info.left_rect = [lx, ly, lw, lh]
+            face_info.right_rect = [rx, ry, rw, rh]
+        else:
+            face_info.face_rect = [int(v) for v in raw_face_rect]
+            face_info.left_rect = [int(v) for v in raw_left_rect]
+            face_info.right_rect = [int(v) for v in raw_right_rect]
 
         face_info.face_landmarks = _face_mesh
         face_info.left_eye_openness = left_eye_area

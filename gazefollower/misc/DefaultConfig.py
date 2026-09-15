@@ -58,6 +58,11 @@ class DefaultConfig:
         # Processing mode: multiprocessing vs multithreading
         self.use_multiprocessing = True
 
+        # 1-Euro Filter settings for face and eye smoothing
+        self.enable_face_filter = True
+        self.filter_min_cutoff = 1.0
+        self.filter_beta = 0.01
+
         self._monitors = []
         self.screen_size = np.array([1920, 1080])
         if get_monitors is not None:
