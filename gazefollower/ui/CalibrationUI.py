@@ -34,7 +34,7 @@ class CalibrationUI(BaseUI):
     def draw_guidance(self, instruction_text):
         """Draws the guidance text for the user."""
         self.running = True
-        # texts = instruction_text.split("\n")
+        self.backend.clear_events()
         while self.running:
             # listen event
             self.backend.listen_event(self)
@@ -95,6 +95,7 @@ class CalibrationUI(BaseUI):
                 pass
 
         text += "\nPress `Space` to continue OR `R` to recalibration"
+        self.backend.clear_events()
         while self.running:
             key = self.backend.listen_keys(key=('space', 'r'))
             if key == 'space':
@@ -118,6 +119,7 @@ class CalibrationUI(BaseUI):
 
     def new_session(self):
         self.running = True
+        self.backend.clear_events()
 
     def draw(self, cali_controller: CalibrationController):
         last_x, last_y = -1, -1

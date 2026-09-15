@@ -209,6 +209,12 @@ class UIBackend:
         """
         raise NotImplementedError
 
+    def clear_events(self):
+        """
+        Discard buffered keyboard and mouse input events.
+        """
+        pass
+
 
 class PsychoPyUIBackend(UIBackend):
     def __init__(self, win):
@@ -416,40 +422,44 @@ class PsychoPyUIBackend(UIBackend):
     def stop_sound(self, sound_id):
         self._sound_cache[sound_id].stop()
 
-    def draw_text_on_screen_center(self, text: str, font_name: str, font_size: int, text_color=(0, 0, 0)):
-        lines = text.split('\n')
-        sw, sh = self.get_screen_size()
-        line_spacing = int(font_size * 0.2)
-        total_h = len(lines) * font_size + (len(lines) - 1) * line_spacing
-        start_y = (sh - total_h) // 2
+    def clear_events(self):
+        self.event.clearEvents()
+        if hasattr(self, '_last_mouse_pressed'):
+            self._last_mouse_pressed = False
 
-        for idx, line in enumerate(lines):
-            y_pos = start_y + idx * (font_size + line_spacing)
-            self.draw_text(line, self.font_name, font_size, text_color,
-                           (0, y_pos, sw, font_size), align='center')
+    def draw_text_on_screen_center(self, text: str, font_name: str, font_size: int, text_color=(0, 0, 0)):
+        sw, sh = self.get_screen_size()
+        self.text_stim.text = text
+        self.text_stim.font = font_name
+        self.text_stim.height = font_size
+        self.text_stim.color = text_color
+        self.text_stim.pos = (0, 0)
+        self.text_stim.wrapWidth = int(sw * 0.85)
+        if hasattr(self.text_stim, 'alignText'):
+            self.text_stim.alignText = 'center'
+        if hasattr(self.text_stim, 'anchorHoriz'):
+            self.text_stim.anchorHoriz = 'center'
+        if hasattr(self.text_stim, 'anchorVert'):
+            self.text_stim.anchorVert = 'center'
+        self.text_stim.alignHoriz = 'center'
+        self.text_stim.draw()
 
     def draw_text_in_bottom_right_corner(self, text: str, font_name: str, font_size: int, text_color=(0, 0, 0)):
-        lines = text.split('\n')
         sw, sh = self.get_screen_size()
-
-        start_y = int(sh * 0.85)
-        subregion_height = sh - start_y
-
-        line_spacing = int(font_size * 0.2)
-        total_h = len(lines) * font_size + (len(lines) - 1) * line_spacing
-
-        y_offset = start_y + (subregion_height - total_h) // 2
-
-        for idx, line in enumerate(lines):
-            y_pos = y_offset + idx * (font_size + line_spacing)
-            self.draw_text(
-                text=line,
-                font_name=font_name,
-                font_size=font_size,
-                text_color=text_color,
-                rect=(0, y_pos, sw, font_size),
-                align='center'
-            )
+        self.text_stim.text = text
+        self.text_stim.font = font_name
+        self.text_stim.height = font_size
+        self.text_stim.color = text_color
+        self.text_stim.pos = (0, int(-sh * 0.35))
+        self.text_stim.wrapWidth = int(sw * 0.85)
+        if hasattr(self.text_stim, 'alignText'):
+            self.text_stim.alignText = 'center'
+        if hasattr(self.text_stim, 'anchorHoriz'):
+            self.text_stim.anchorHoriz = 'center'
+        if hasattr(self.text_stim, 'anchorVert'):
+            self.text_stim.anchorVert = 'center'
+        self.text_stim.alignHoriz = 'center'
+        self.text_stim.draw()
 
     def listen_keys(self, key: Tuple):
         pressed_keys = self.event.getKeys(keyList=key)
@@ -554,6 +564,9 @@ class PyGameUIBackend(UIBackend):
 
     def get_screen_size(self):
         return self.win.get_size()
+
+    def clear_events(self):
+        pygame.event.clear()
 
     def before_draw(self):
         self.win.fill(self.bg_color)
