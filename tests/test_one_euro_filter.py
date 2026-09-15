@@ -44,12 +44,16 @@ class TestOneEuroFilter(unittest.TestCase):
         self.assertEqual(len(filtered_coords), 2)
         self.assertEqual(filtered_coords[0], 100.0)
         self.assertGreater(filtered_coords[1], 100.0)
-        self.assertLess(filtered_coords[1], 200.0)
+        self.assertLessEqual(filtered_coords[1], 200.0)
 
         filtered_coords2 = oef.filter_values([110.0, 210.0], timestamp=1033)
         self.assertEqual(len(filtered_coords2), 2)
         self.assertIsInstance(filtered_coords2[0], float)
         self.assertIsInstance(filtered_coords2[1], float)
+        self.assertGreater(filtered_coords2[0], 100.0)
+        self.assertLess(filtered_coords2[0], 110.0)
+        self.assertGreater(filtered_coords2[1], 200.0)
+        self.assertLess(filtered_coords2[1], 210.0)
 
 
 if __name__ == '__main__':

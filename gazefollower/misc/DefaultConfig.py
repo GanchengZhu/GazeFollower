@@ -59,7 +59,7 @@ class DefaultConfig:
         self.use_multiprocessing = True
 
         # 1-Euro Filter settings for face and eye smoothing
-        self.enable_face_filter = True
+        self.enable_face_filter = False
         self.filter_min_cutoff = 1.0
         self.filter_beta = 0.01
 

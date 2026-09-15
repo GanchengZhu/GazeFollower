@@ -36,9 +36,14 @@ class GazeFollower:
                 gaze_filter: Filter = None,
                 calibration: Calibration = None,
                 config: DefaultConfig = None,
-                use_multiprocessing: bool = True):
-        if config is not None and hasattr(config, 'use_multiprocessing'):
-            mp = config.use_multiprocessing
+                use_multiprocessing: bool = None):
+        if use_multiprocessing is None:
+            if camera is not None and not isinstance(camera, WebCamCamera):
+                mp = False
+            elif config is not None and hasattr(config, 'use_multiprocessing'):
+                mp = config.use_multiprocessing
+            else:
+                mp = True
         else:
             mp = use_multiprocessing
 

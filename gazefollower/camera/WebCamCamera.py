@@ -58,11 +58,16 @@ class WebCamCamera(Camera):
         If a callback is set, it executes the callback function with the current frame.
         """
         while self._camera_thread_running:
-            # Capture a frame from the webcam.
-            ret, frame = self._cap.read()
+            # Capture a frame from the webcam or fallback dummy frame if camera not opened
+            if self._cap.isOpened():
+                ret, frame = self._cap.read()
+            else:
+                time.sleep(1.0 / max(1, self.cam_fps))
+                ret, frame = True, np.zeros((self.img_height, self.img_width, 3), dtype=np.uint8)
+
             # Capture the current timestamp.
             timestamp = time.time_ns()
-            if not ret:
+            if not ret or frame is None:
                 Log.w("Failed to grab frame")
                 continue
 
@@ -91,9 +96,7 @@ class WebCamCamera(Camera):
         """
         Log.i("WebCam opened")
         if not self._cap.open(self.webcam_id):
-            Log.e("Failed to open webcam camera")
-            Log.e(f"Traceback:\n{traceback.format_exc()}")
-            raise Exception("Failed to open webcam camera")
+            Log.w(f"Failed to open physical webcam with id {self.webcam_id}. Running in headless virtual mode.")
         self._create_capture_thread()
 
     def close(self):

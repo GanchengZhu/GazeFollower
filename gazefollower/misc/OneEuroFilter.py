@@ -10,11 +10,18 @@ class LowPassFilter:
     Exponential moving average low-pass filter supporting both scalars and NumPy arrays.
     """
 
-    def __init__(self, alpha: float = 1.0):
+    def __init__(self, alpha: float = 1.0, initval=0.0):
         self.a = float(alpha)
+        self.initval = initval
         self.y = None
         self.s = None
         self.initialized = False
+
+    def has_last_raw_value(self) -> bool:
+        return self.initialized
+
+    def last_raw_value(self):
+        return self.y
 
     def filter(self, value, alpha=None):
         a = self.a if alpha is None else alpha
@@ -26,6 +33,8 @@ class LowPassFilter:
             self.initialized = True
         self.y = val_arr.copy()
         self.s = result.copy()
+        if np.isscalar(value) or isinstance(value, (int, float)):
+            return float(result)
         return result
 
     def reset(self):

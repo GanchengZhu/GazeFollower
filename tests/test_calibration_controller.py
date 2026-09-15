@@ -47,55 +47,38 @@ class TestCalibrationController(unittest.TestCase):
         self.assertFalse(controller.is_point_collecting)
         self.assertEqual(controller.progress, 0)
 
-        # Click warmup point (index 0) -> begins collection
+        # Click warmup point (index 0) -> advances to point 1
         clicked = controller.on_target_clicked()
         self.assertTrue(clicked)
-        self.assertTrue(controller.is_point_collecting)
-
-        # Feed 45 frames for warmup point -> finishes and advances to point 1
-        face_info, gaze_info = self._create_mock_face_gaze()
-        for _ in range(45):
-            controller.add_cali_feature(gaze_info, face_info)
-
         self.assertEqual(controller._current_index, 1)
-        self.assertFalse(controller.is_point_collecting)
-        self.assertEqual(controller.progress, 0)
 
-        # Before click on point 1, frames are ignored
-        controller.add_cali_feature(gaze_info, face_info)
-        self.assertEqual(controller.progress, 0)
+        face_info, gaze_info = self._create_mock_face_gaze()
 
-        # Click point 1 -> begins collection
+        # Buffer gaze frames before click on point 1
+        for _ in range(15):
+            controller.add_cali_feature(gaze_info, face_info)
+
+        # Click point 1 -> commits 10 frames and advances to point 2
         clicked = controller.on_target_clicked()
         self.assertTrue(clicked)
-        self.assertTrue(controller.is_point_collecting)
-
-        # Feed 45 frames -> progress reaches 100% and advances to point 2
-        for i in range(45):
-            controller.add_cali_feature(gaze_info, face_info)
-            expected_prog = min(100, int(np.round((i + 1) * 100 / 45)))
-            self.assertEqual(controller.progress, expected_prog if i < 44 else 0)
-
         self.assertEqual(controller._current_index, 2)
-        self.assertFalse(controller.is_point_collecting)
-        self.assertEqual(len(controller.feature_vectors[0]), 45)
-        self.assertEqual(len(controller.label_vectors[0]), 45)
+        self.assertEqual(len(controller.feature_vectors[0]), 10)
+        self.assertEqual(len(controller.label_vectors[0]), 10)
 
         # Complete points 2, 3, 4, 5
         for pt in range(2, 6):
             self.assertEqual(controller._current_index, pt)
+            for _ in range(12):
+                controller.add_cali_feature(gaze_info, face_info)
             clicked = controller.on_target_clicked()
             self.assertTrue(clicked)
-            self.assertTrue(controller.is_point_collecting)
-            for _ in range(45):
-                controller.add_cali_feature(gaze_info, face_info)
 
-        # After point 5 reaches 100%, calibration should complete
+        # After point 5 is clicked, calibration should complete
         self.assertFalse(controller.calibrating)
         features_arr = np.array(controller.feature_vectors)
-        self.assertEqual(features_arr.shape, (5, 45, 128))
+        self.assertEqual(features_arr.shape, (5, 10, 128))
         labels_arr = np.array(controller.label_vectors)
-        self.assertEqual(labels_arr.shape, (5, 45, 2))
+        self.assertEqual(labels_arr.shape, (5, 10, 2))
 
     def test_lissajous_no_click(self):
         """
