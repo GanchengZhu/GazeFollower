@@ -88,7 +88,7 @@ class DefaultConfig:
         if self.cali_mode == CalibrationMode.LISSAJOUS:
             return "Lissajous Smooth Pursuit Calibration\nPlease follow the moving dot with your eyes.\nPress `SPACE` to continue."
         elif self.cali_click_mode:
-            return "Point-and-Click Calibration\nPlease look at each dot and click it, then keep looking until 100.\nPress `SPACE` to continue."
+            return "Point-and-Click Calibration\nPlease look directly at each dot and click it with the mouse.\nPress `SPACE` to continue."
         else:
             return "Please look at the dot.\nPress `SPACE` to continue."
 

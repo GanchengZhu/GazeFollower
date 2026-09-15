@@ -159,15 +159,16 @@ class CalibrationUI(BaseUI):
 
             self.backend.draw_image(self.config.cali_target_img, draw_rect)
 
-            # Display progress or indicator
+            # Display progress or indicator (no text in click mode)
             if is_lissajous:
                 progress_str = f"{cali_controller.progress}%"
             elif cali_controller.cali_click_mode:
-                progress_str = "Click"
+                progress_str = ""
             else:
                 progress_str = str(cali_controller.progress)
 
-            self.backend.draw_text(progress_str, self.font_name, self.row_font_size, self._color_white,
-                                   draw_rect)
+            if progress_str:
+                self.backend.draw_text(progress_str, self.font_name, self.row_font_size, self._color_white,
+                                       draw_rect)
             # flip the screen
             self.backend.after_draw()
