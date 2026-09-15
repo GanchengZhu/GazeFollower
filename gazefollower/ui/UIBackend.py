@@ -233,8 +233,7 @@ class PsychoPyUIBackend(UIBackend):
                                           units='pix', anchor='top-left')
         self.text_stim = visual.TextStim(self.win, text='', font=self.font_name, color=None, colorSpace='rgb255',
                                          units="pix")
-        self.image_stim = visual.GratingStim(self.win, tex=None, mask=None, colorSpace='rgb',
-                                             units="pix")
+        self.image_stim = visual.ImageStim(self.win, image=None, mask=None, units="pix")
         self.mouse = self.event.Mouse()
         self.win_unit = self.win.units
         self._image_cache = {}
@@ -258,10 +257,7 @@ class PsychoPyUIBackend(UIBackend):
         self.line_stim.lineWidth = line_width
         self.line_stim.draw()
 
-    def draw_texture(self, img: np.ndarray, rect: Tuple[int, int, int, int]):
-        self.draw_image(img, rect)
-
-    def draw_image(self, img: np.ndarray | str, rect: Tuple[int, int, int, int]):
+    def draw_texture(self, img: np.ndarray | str, rect: Tuple[int, int, int, int]):
         if img is None:
             return
 
@@ -311,22 +307,32 @@ class PsychoPyUIBackend(UIBackend):
         if cache_key not in self.texture_cache:
             p_x = draw_x + scaled_w // 2
             p_y = draw_y + scaled_h // 2
-            stim = self.visual.GratingStim(
-                win=self.win, tex=None, mask=None,
+            stim = self.visual.ImageStim(
+                win=self.win, image=None, mask=None,
                 pos=self.pixel_to_psychopy_coordinate(p_x, p_y),
-                size=(scaled_w, scaled_h), colorSpace='rgb', units='pix'
+                size=(scaled_w, scaled_h), units='pix'
             )
             self.texture_cache[cache_key] = stim
         else:
             stim = self.texture_cache[cache_key]
 
-        # Referencing Pupilio's draw_texture: rotate 180 and flip horizontally
-        img_rot = cv2.rotate(image, cv2.ROTATE_180)
-        img_rot = cv2.flip(img_rot, 1)
-        # PsychoPy colorSpace='rgb' requires -1.0 to 1.0
-        norm_img = (img_rot.astype(np.float32) / 127.5) - 1.0
-        stim.tex = norm_img
+        norm_img = (image.astype(np.float32) / 127.5) - 1.0
+        stim.image = cv2.flip(norm_img, 0)
         stim.draw()
+
+    def draw_image(self, img: np.ndarray | str, rect: Tuple[int, int, int, int]):
+        if img is None:
+            return
+        if isinstance(img, np.ndarray):
+            self.draw_texture(img, rect)
+            return
+
+        x, y, w, h = rect
+        p_x, p_y = x + w // 2, y + h // 2
+        self.image_stim.pos = self.pixel_to_psychopy_coordinate(p_x, p_y)
+        self.image_stim.size = (w, h)
+        self.image_stim.image = img
+        self.image_stim.draw()
 
     def draw_rect(self, rect: Tuple[int, int, int, int], color, line_width):
         fill_color = color if line_width == 0 else None
@@ -468,9 +474,19 @@ class PyGameUIBackend(UIBackend):
         super().__init__(win)
         self._sound_cache = {}
         self._image_cache = {}
+        self._font_cache = {}
         self.bg_color = bg_color
         pygame.font.init()
         pygame.mixer.init()
+
+    def _get_font(self, font_name: str, font_size: int):
+        key = (font_name, font_size)
+        if key not in self._font_cache:
+            try:
+                self._font_cache[key] = pygame.font.SysFont(font_name, font_size)
+            except Exception:
+                self._font_cache[key] = pygame.font.Font(None, font_size)
+        return self._font_cache[key]
 
     def draw_circle(self, x, y, radius, color):
         pygame.draw.circle(self.win, color, (x, y), radius)
@@ -478,7 +494,7 @@ class PyGameUIBackend(UIBackend):
     def draw_line(self, sx, sy, ex, ey, color, line_width):
         pygame.draw.line(self.win, color, (sx, sy), (ex, ey), line_width)
 
-    def draw_texture(self, img: np.ndarray, rect: Tuple[int, int, int, int]):
+    def draw_texture(self, img: np.ndarray | str, rect: Tuple[int, int, int, int]):
         self.draw_image(img, rect)
 
     def draw_image(self, img: np.ndarray | str, rect: Tuple[int, int, int, int]):
@@ -497,8 +513,8 @@ class PyGameUIBackend(UIBackend):
                 img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
             elif img.ndim == 3 and img.shape[2] == 1:
                 img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
-            img_rot = cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE)
-            image = pygame.surfarray.make_surface(img_rot)
+            transposed_img = np.transpose(img, (1, 0, 2))
+            image = pygame.surfarray.make_surface(transposed_img)
         else:
             return
 
@@ -514,25 +530,18 @@ class PyGameUIBackend(UIBackend):
             new_width = target_width
             new_height = int(new_width / aspect_ratio)
 
-        scaled_image = pygame.transform.smoothscale(image, (new_width, new_height))
+        scaled_image = pygame.transform.scale(image, (new_width, new_height))
         x = rect[0] + (target_width - new_width) // 2
         y = rect[1] + (target_height - new_height) // 2
 
         self.win.blit(scaled_image, (x, y))
-        # image = pygame.transform.scale(image, (rect[2], rect[3]))
-        # self.win.blit(image, (rect[0], rect[1]))
 
     def draw_rect(self, rect: Tuple[int, int, int, int], color, line_width):
         pygame.draw.rect(self.win, color, rect, line_width)
 
     def draw_text(self, text: str, font_name: str, font_size: int, text_color: Tuple[int, int, int],
                   rect: Tuple[int, int, int, int], align='center'):
-        try:
-            font = pygame.font.SysFont(font_name, font_size)
-        except Exception:
-            # Fallback for Windows registry bug (TypeError in initsysfonts_win32)
-            font = pygame.font.Font(None, font_size)
-            
+        font = self._get_font(font_name, font_size)
         text_surface = font.render(text, True, text_color)
         text_rect = text_surface.get_rect()
         if align == 'center':

@@ -111,9 +111,9 @@ class MediaPipeFaceAlignment(FaceAlignment):
         polygon_vertices = [(0, 0), (0, 5), (5, 5), (5, 0)]
         area = calculate_polygon_area(polygon_vertices)
         """
-        x = vertices[:, 0]
-        y = vertices[:, 1]
-        return 0.5 * np.abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))
+        x = vertices[:, 0].astype(np.float64)
+        y = vertices[:, 1].astype(np.float64)
+        return float(0.5 * np.abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1))))
 
     def detect(self, timestamp, image) -> FaceInfo:
         """

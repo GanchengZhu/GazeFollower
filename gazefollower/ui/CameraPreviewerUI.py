@@ -223,10 +223,16 @@ class CameraPreviewerUI(BaseUI):
             # for pygame
             self.backend.before_draw()
             # draw image previewer
-            self.backend.draw_image(self.frame_image, self.frame_rect)
-            self.backend.draw_image(self.face_image, self.face_rect)
-            self.backend.draw_image(self.left_eye_image, self.left_eye_rect)
-            self.backend.draw_image(self.right_eye_image, self.right_eye_rect)
+            if self.backend_name == 'psychopy':
+                self.backend.draw_texture(self.frame_image, self.frame_rect)
+                self.backend.draw_texture(self.face_image, self.face_rect)
+                self.backend.draw_texture(self.left_eye_image, self.left_eye_rect)
+                self.backend.draw_texture(self.right_eye_image, self.right_eye_rect)
+            else:
+                self.backend.draw_image(self.frame_image, self.frame_rect)
+                self.backend.draw_image(self.face_image, self.face_rect)
+                self.backend.draw_image(self.left_eye_image, self.left_eye_rect)
+                self.backend.draw_image(self.right_eye_image, self.right_eye_rect)
             # draw texts
             self.backend.draw_text(self._frame_text, self.font_name, self.image_font_size,
                                    text_color=self._color_black, rect=self._frame_text_rect)
@@ -240,8 +246,6 @@ class CameraPreviewerUI(BaseUI):
             self.draw_table(self.face_info_dict, self._table_left_top_position)
             # Draw grid
             self.draw_grid_rect()
-            # draw information table
-            self.draw_table(self.face_info_dict, self._table_left_top_position)
             # flip the screen
             self.backend.after_draw()
 

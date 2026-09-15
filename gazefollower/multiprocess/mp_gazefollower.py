@@ -127,6 +127,7 @@ class MultiprocessGazeFollower:
 
         import cv2
         from ..camera import WebCamCamera
+        from ..misc import clip_patch
         webcam_id = self.config_dict.get('webcam_id', 0)
         local_cam = WebCamCamera(webcam_id=webcam_id)
         if self.config_dict.get('face_alignment_type') == 'blazeface':
@@ -140,9 +141,9 @@ class MultiprocessGazeFollower:
             left_eye_patch = None
             right_eye_patch = None
             if face_info.status and face_info.can_gaze_estimation:
-                face_patch = local_fa.crop_face(frame, face_info)
-                left_eye_patch = local_fa.crop_left_eye(frame, face_info)
-                right_eye_patch = local_fa.crop_right_eye(frame, face_info)
+                face_patch = clip_patch(frame, face_info.face_rect)
+                left_eye_patch = clip_patch(frame, face_info.left_rect)
+                right_eye_patch = clip_patch(frame, face_info.right_rect)
 
                 x, y, w, h = face_info.left_rect
                 cv2.rectangle(frame, (x, y), (x + w, y + h), color=(255, 0, 0), thickness=2)
