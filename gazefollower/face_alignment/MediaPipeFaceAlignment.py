@@ -7,9 +7,6 @@ import os
 import urllib.request
 from pathlib import Path
 
-# Disable GPU initialization for headless / CPU environments
-os.environ.setdefault("MEDIAPIPE_DISABLE_GPU", "1")
-
 import cv2
 import mediapipe as mp
 import numpy as np
@@ -191,6 +188,19 @@ class MediaPipeFaceAlignment(FaceAlignment):
         self.right_vertices_index = [362, 388, 384, 385, 386, 387, 388, 466, 263, 249, 380, 373, 374, 380, 381, 382,
                                      362]
 
+    def _get_fallback_blazeface(self):
+        if getattr(self, '_fallback_blazeface', None) is None:
+            try:
+                from .BlazeFaceAlignment import BlazeFaceAlignment
+                self._fallback_blazeface = BlazeFaceAlignment(
+                    enable_filter=self.enable_filter,
+                    filter_min_cutoff=1.0,
+                    filter_beta=0.01
+                )
+            except Exception:
+                self._fallback_blazeface = None
+        return self._fallback_blazeface
+
     def reset_filters(self):
         """
         Resets 1-Euro smoothing filter states.
@@ -239,20 +249,26 @@ class MediaPipeFaceAlignment(FaceAlignment):
         face_info.img_h = image_height
 
         if not self.use_tasks_api and self.face_mesh is None:
-            if self._fallback_blazeface is not None:
-                return self._fallback_blazeface.detect(timestamp, image)
+            fallback = self._get_fallback_blazeface()
+            if fallback is not None:
+                return fallback.detect(timestamp, image)
             face_info.status = False
             face_info.can_gaze_estimation = False
             self.reset_filters()
             return face_info
 
         if self.use_tasks_api:
-            rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-            mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_image)
-            result = self.landmarker.detect(mp_image)
-            if not result.face_landmarks or len(result.face_landmarks) == 0:
-                if self._fallback_blazeface is not None:
-                    return self._fallback_blazeface.detect(timestamp, image)
+            try:
+                rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+                mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_image)
+                result = self.landmarker.detect(mp_image)
+            except Exception:
+                result = None
+
+            if not result or not result.face_landmarks or len(result.face_landmarks) == 0:
+                fallback = self._get_fallback_blazeface()
+                if fallback is not None:
+                    return fallback.detect(timestamp, image)
                 face_info.status = False
                 face_info.can_gaze_estimation = False
                 self.reset_filters()
@@ -268,12 +284,17 @@ class MediaPipeFaceAlignment(FaceAlignment):
                 for lm in raw_landmarks
             ]
         else:
-            rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-            outputs = self.face_mesh.process(rgb_image)
-            _multi_face_landmarks = outputs.multi_face_landmarks
+            try:
+                rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+                outputs = self.face_mesh.process(rgb_image)
+                _multi_face_landmarks = outputs.multi_face_landmarks if outputs else None
+            except Exception:
+                _multi_face_landmarks = None
+
             if not _multi_face_landmarks:
-                if self._fallback_blazeface is not None:
-                    return self._fallback_blazeface.detect(timestamp, image)
+                fallback = self._get_fallback_blazeface()
+                if fallback is not None:
+                    return fallback.detect(timestamp, image)
                 face_info.status = False
                 face_info.can_gaze_estimation = False
                 self.reset_filters()

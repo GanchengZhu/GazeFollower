@@ -15,7 +15,6 @@ jobs:
     env:
       SDL_VIDEODRIVER: "dummy"
       SDL_AUDIODRIVER: "dummy"
-      MEDIAPIPE_DISABLE_GPU: "1"
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
