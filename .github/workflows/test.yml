@@ -20,6 +20,7 @@ jobs:
     env:
       SDL_VIDEODRIVER: "dummy"
       SDL_AUDIODRIVER: "dummy"
+      MEDIAPIPE_DISABLE_GPU: "1"
 
     steps:
       - name: Checkout code
@@ -34,7 +35,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgl1 libglib2.0-0 || sudo apt-get install -y libgl1 libglib2.0-0t64 || true
+          sudo apt-get install -y libgl1 libglib2.0-0 libegl1 libgles2 libgl1-mesa-glx libgl1-mesa-dri || sudo apt-get install -y libgl1 libglib2.0-0t64 libegl1 libgles2 || true
           sudo apt-get install -y libasound2-dev libasound2 || true
 
       - name: Install dependencies
@@ -45,4 +46,4 @@ jobs:
 
       - name: Run pytest
         run: |
-          pytest -v tests/
+          python -m pytest -v tests/

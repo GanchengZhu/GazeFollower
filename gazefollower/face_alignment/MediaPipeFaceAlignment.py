@@ -55,50 +55,119 @@ class MediaPipeFaceAlignment(FaceAlignment):
 
             resolved_model_path = model_path
             if resolved_model_path is None:
-                default_path = Path(__file__).parent.parent / "res" / "model_weights" / "face_landmarker.task"
-                if not default_path.exists():
+                candidates = [
+                    Path(__file__).resolve().parent.parent / "res" / "model_weights" / "face_landmarker.task",
+                    Path(__file__).parent.parent / "res" / "model_weights" / "face_landmarker.task",
+                    Path.cwd() / "gazefollower" / "res" / "model_weights" / "face_landmarker.task",
+                ]
+                for cand in candidates:
+                    if cand.exists() and cand.stat().st_size > 0:
+                        resolved_model_path = str(cand)
+                        break
+
+                if resolved_model_path is None:
+                    default_path = candidates[0]
                     default_path.parent.mkdir(parents=True, exist_ok=True)
                     url = "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task"
                     try:
-                        urllib.request.urlretrieve(url, str(default_path))
+                        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+                        with urllib.request.urlopen(req, timeout=15) as resp, open(default_path, 'wb') as out_f:
+                            out_f.write(resp.read())
                     except Exception:
                         pass
-                if default_path.exists():
-                    resolved_model_path = str(default_path)
+                    if default_path.exists() and default_path.stat().st_size > 0:
+                        resolved_model_path = str(default_path)
 
             if resolved_model_path and os.path.exists(resolved_model_path):
-                base_options = python.BaseOptions(model_asset_path=resolved_model_path)
-                options = vision.FaceLandmarkerOptions(
-                    base_options=base_options,
-                    running_mode=vision.RunningMode.IMAGE,
-                    num_faces=self.max_num_faces,
-                    min_face_detection_confidence=self.min_detection_confidence,
-                    min_face_presence_confidence=self.min_detection_confidence,
-                    min_tracking_confidence=self.min_tracking_confidence,
-                    output_face_blendshapes=False,
-                    output_facial_transformation_matrixes=False,
-                )
-                self.landmarker = vision.FaceLandmarker.create_from_options(options)
-                self.use_tasks_api = True
+                # Load model into buffer to bypass any Linux path / permission / container issues
+                model_buffer = None
+                try:
+                    with open(resolved_model_path, "rb") as f:
+                        model_buffer = f.read()
+                except Exception:
+                    pass
+
+                # Strategy A: model_asset_buffer with explicit CPU delegate (fastest, most compatible on headless Linux)
+                if model_buffer:
+                    try:
+                        base_options = python.BaseOptions(
+                            model_asset_buffer=model_buffer,
+                            delegate=python.BaseOptions.Delegate.CPU
+                        )
+                        options = vision.FaceLandmarkerOptions(
+                            base_options=base_options,
+                            running_mode=vision.RunningMode.IMAGE,
+                            num_faces=self.max_num_faces,
+                            min_face_detection_confidence=self.min_detection_confidence,
+                            min_face_presence_confidence=self.min_detection_confidence,
+                            min_tracking_confidence=self.min_tracking_confidence,
+                            output_face_blendshapes=False,
+                            output_facial_transformation_matrixes=False,
+                        )
+                        self.landmarker = vision.FaceLandmarker.create_from_options(options)
+                        self.use_tasks_api = True
+                    except Exception:
+                        self.use_tasks_api = False
+
+                # Strategy B: model_asset_path with explicit CPU delegate
+                if not self.use_tasks_api:
+                    try:
+                        base_options = python.BaseOptions(
+                            model_asset_path=str(resolved_model_path),
+                            delegate=python.BaseOptions.Delegate.CPU
+                        )
+                        options = vision.FaceLandmarkerOptions(
+                            base_options=base_options,
+                            running_mode=vision.RunningMode.IMAGE,
+                            num_faces=self.max_num_faces,
+                            min_face_detection_confidence=self.min_detection_confidence,
+                            min_face_presence_confidence=self.min_detection_confidence,
+                            min_tracking_confidence=self.min_tracking_confidence,
+                            output_face_blendshapes=False,
+                            output_facial_transformation_matrixes=False,
+                        )
+                        self.landmarker = vision.FaceLandmarker.create_from_options(options)
+                        self.use_tasks_api = True
+                    except Exception:
+                        self.use_tasks_api = False
+
+                # Strategy C: default options without explicit delegate
+                if not self.use_tasks_api:
+                    try:
+                        base_options = python.BaseOptions(model_asset_path=str(resolved_model_path))
+                        options = vision.FaceLandmarkerOptions(
+                            base_options=base_options,
+                            running_mode=vision.RunningMode.IMAGE,
+                            num_faces=self.max_num_faces,
+                            min_face_detection_confidence=self.min_detection_confidence,
+                            min_face_presence_confidence=self.min_detection_confidence,
+                            min_tracking_confidence=self.min_tracking_confidence,
+                            output_face_blendshapes=False,
+                            output_facial_transformation_matrixes=False,
+                        )
+                        self.landmarker = vision.FaceLandmarker.create_from_options(options)
+                        self.use_tasks_api = True
+                    except Exception:
+                        self.use_tasks_api = False
         except Exception:
             self.use_tasks_api = False
 
         # 2. Fallback to legacy solutions API if Tasks API is not available
         if not self.use_tasks_api:
             if hasattr(mp, 'solutions') and hasattr(mp.solutions, 'face_mesh'):
-                self.mp_face_mesh = mp.solutions.face_mesh
-                self.face_mesh = self.mp_face_mesh.FaceMesh(
-                    self.static_image_mode,
-                    self.max_num_faces,
-                    True,
-                    self.min_detection_confidence,
-                    self.min_tracking_confidence
-                )
+                try:
+                    self.mp_face_mesh = mp.solutions.face_mesh
+                    self.face_mesh = self.mp_face_mesh.FaceMesh(
+                        self.static_image_mode,
+                        self.max_num_faces,
+                        True,
+                        self.min_detection_confidence,
+                        self.min_tracking_confidence
+                    )
+                except Exception:
+                    self.face_mesh = None
             else:
-                raise RuntimeError(
-                    "Neither MediaPipe Tasks FaceLandmarker (with face_landmarker.task) "
-                    "nor legacy mediapipe.solutions.face_mesh could be initialized."
-                )
+                self.face_mesh = None
 
         # Define vertex indices for lip and eye regions
         self.lip_vertices_index = [61, 91, 14, 178, 402, 324, 95]
@@ -150,6 +219,12 @@ class MediaPipeFaceAlignment(FaceAlignment):
         image_height, image_width, _ = image.shape
         face_info.img_w = image_width
         face_info.img_h = image_height
+
+        if not self.use_tasks_api and self.face_mesh is None:
+            face_info.status = False
+            face_info.can_gaze_estimation = False
+            self.reset_filters()
+            return face_info
 
         if self.use_tasks_api:
             rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)

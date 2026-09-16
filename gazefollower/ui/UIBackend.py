@@ -1,8 +1,6 @@
-# encoding=utf-8
-# Author: GC Zhu
-# Email: zhugc2016@gmail.com
+from __future__ import annotations
 
-from typing import Tuple
+from typing import Tuple, Union
 
 import cv2
 import numpy
@@ -263,7 +261,7 @@ class PsychoPyUIBackend(UIBackend):
         self.line_stim.lineWidth = line_width
         self.line_stim.draw()
 
-    def draw_texture(self, img: np.ndarray | str, rect: Tuple[int, int, int, int]):
+    def draw_texture(self, img: Union[np.ndarray, str], rect: Tuple[int, int, int, int]):
         if img is None:
             return
 
@@ -327,7 +325,7 @@ class PsychoPyUIBackend(UIBackend):
         stim.image = cv2.flip(norm_img, 0)
         stim.draw()
 
-    def draw_image(self, img: np.ndarray | str, rect: Tuple[int, int, int, int]):
+    def draw_image(self, img: Union[np.ndarray, str], rect: Tuple[int, int, int, int]):
         if img is None:
             return
         if isinstance(img, np.ndarray):
@@ -505,10 +503,10 @@ class PyGameUIBackend(UIBackend):
     def draw_line(self, sx, sy, ex, ey, color, line_width):
         pygame.draw.line(self.win, color, (sx, sy), (ex, ey), line_width)
 
-    def draw_texture(self, img: np.ndarray | str, rect: Tuple[int, int, int, int]):
+    def draw_texture(self, img: Union[np.ndarray, str], rect: Tuple[int, int, int, int]):
         self.draw_image(img, rect)
 
-    def draw_image(self, img: np.ndarray | str, rect: Tuple[int, int, int, int]):
+    def draw_image(self, img: Union[np.ndarray, str], rect: Tuple[int, int, int, int]):
         if img is None:
             return
 
