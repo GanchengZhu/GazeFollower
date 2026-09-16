@@ -30,6 +30,7 @@ class TestPipeline(unittest.TestCase):
         self.assertTrue(face_info.status)
         self.assertTrue(face_info.can_gaze_estimation)
         self.assertEqual(len(face_info.face_rect), 4)
+        aligner.release()
 
     def test_mediapipe_alignment(self):
         aligner = MediaPipeFaceAlignment()
@@ -37,6 +38,7 @@ class TestPipeline(unittest.TestCase):
         self.assertIsNotNone(face_info)
         self.assertTrue(face_info.status)
         self.assertTrue(face_info.can_gaze_estimation)
+        aligner.release()
 
     def test_gaze_estimator_with_blazeface(self):
         aligner = BlazeFaceAlignment()

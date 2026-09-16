@@ -43,6 +43,7 @@ setup(
     package_data={
         package_name: ['res/audio/*', 'res/image/*', 'res/model_weights/*'],
     },
+    include_package_data=True,
 
     install_requires=[
         'mediapipe',
