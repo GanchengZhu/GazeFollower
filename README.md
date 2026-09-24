@@ -5,7 +5,7 @@
 
   <h1>GazeFollower</h1>
 
-<b>An open-source gaze tracking system for web cameras</b><br/>
+<b>An open-source gaze tracking system for web cameras (webcam)</b><br/>
 <i>Simple, Fast, Pythonic, Accurate</i><br/>
 
 <p>
