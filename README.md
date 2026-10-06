@@ -84,7 +84,7 @@ More detailed usage information can be found [here](MORE_INFO.md).
 
 A webcam will never match the tracking accuracy and stability of commercial trackers (e.g., EyeLink). Head movements and drastic lighting changes seriously affect tracking performance, but recalibration usually gets things back on track. The 7M model included in the repo should work reasonably well with cooperative users. The 32M model shows limited accuracy improvement in our tests, due to the limitations of CNN-based algorithms and the use of RGB images from a webcam. We are developing a new model architecture and pipeline that will allow us to post freely on Git for the community. Please stay tuned; we hope to have this done soon. If you do need the 32M model right now for academic research purposes, please contact zhiguo@zju.edu.cn.
 
-### The Usage of The Base Model Trained on 32 Million Images
+### Change the default model
 
 ```python
 import pygame
@@ -107,10 +107,6 @@ gaze_follower.stop_sampling()
 gaze_follower.save_data("demo.csv")
 gaze_follower.release()
 ```
-
-## How to fine-tune
-
-Please send an email to `zhiguo@zju.edu.cn` to access data collection, data preprocessing, and fine-tuning code
 
 ## License Information
 
